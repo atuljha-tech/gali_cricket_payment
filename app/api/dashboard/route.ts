@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
     const month = now.getMonth() + 1
     const year = now.getFullYear()
 
-    const [players, payments, settings] = await Promise.all([
+    const [players, payments, allPaidPayments, settings] = await Promise.all([
       Player.find({ active: true }).lean<Array<{_id: unknown}>>(),
       Payment.find({ month, year }).lean<Array<{playerId: unknown; status: string; total: number}>>(),
+      Payment.find({ status: 'paid' }).select('total').lean<Array<{total: number}>>(),
       Settings.findOne().lean<{monthlyFee: number; dailyFine: number; dueDate: number} | null>(),
     ])
 
@@ -38,7 +39,6 @@ export async function GET(req: NextRequest) {
       .filter((p) => p.status === 'paid')
       .reduce((sum, p) => sum + p.total, 0)
 
-    const allPaidPayments = await Payment.find({ status: 'paid' }).lean<Array<{total: number}>>()
     const totalCollection = allPaidPayments.reduce((sum, p) => sum + p.total, 0)
 
     return NextResponse.json({

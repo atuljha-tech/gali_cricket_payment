@@ -28,7 +28,10 @@ async function dbConnect(): Promise<typeof mongoose> {
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
+      bufferCommands:    false,
+      maxPoolSize:       10,      // reuse up to 10 connections
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS:   45000,
     })
   }
 

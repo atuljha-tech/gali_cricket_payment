@@ -31,5 +31,8 @@ const PaymentSchema = new Schema<IPayment>(
 
 // Compound unique index: one payment record per player per month/year
 PaymentSchema.index({ playerId: 1, month: 1, year: 1 }, { unique: true })
+// Fast status + date queries used by dashboard and history
+PaymentSchema.index({ month: 1, year: 1 })
+PaymentSchema.index({ status: 1 })
 
 export default mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema)

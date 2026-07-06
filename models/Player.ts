@@ -19,4 +19,8 @@ const PlayerSchema = new Schema<IPlayer>(
   { timestamps: true }
 )
 
+// Indexes for fast lookups
+PlayerSchema.index({ active: 1, name: 1 })
+PlayerSchema.index({ name: 'text' })
+
 export default mongoose.models.Player || mongoose.model<IPlayer>('Player', PlayerSchema)
