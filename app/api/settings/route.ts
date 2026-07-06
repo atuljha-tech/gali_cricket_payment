@@ -45,8 +45,8 @@ export async function PUT(req: NextRequest) {
     const settings = await Settings.findOneAndUpdate(
       {},
       { $set: setFields },
-      { upsert: true, new: true, lean: true }
-    )
+      { upsert: true, new: true }
+    ).lean()
 
     return NextResponse.json({ settings })
   } catch (err) {

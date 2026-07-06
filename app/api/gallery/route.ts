@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(50, parseInt(searchParams.get('limit') || '24'))
 
     const [photos, total] = await Promise.all([
-      GalleryPhoto.find({})
+      GalleryPhoto.find({ url: { $exists: true, $ne: '' } }) // only photos with a valid URL
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
           uploadedAt: Date
           uploaderName?: string
         }>>(),
-      GalleryPhoto.countDocuments(),
+      GalleryPhoto.countDocuments({ url: { $exists: true, $ne: '' } }),
     ])
 
     return NextResponse.json({

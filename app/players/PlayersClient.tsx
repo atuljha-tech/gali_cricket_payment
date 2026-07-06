@@ -5,7 +5,7 @@ import AdminLayout from '@/components/AdminLayout'
 import Modal from '@/components/Modal'
 import {
   Search, Plus, CheckCircle2, Clock, AlertCircle,
-  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users
+  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users, Trash2
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -46,6 +46,9 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
 
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchPlayers = useCallback(async () => {
     setLoading(true)
     try {
@@ -56,6 +59,17 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
       setLoading(false)
     }
   }, [search, month, year])
+
+  async function handleDeletePlayer(id: string) {
+    setDeleteLoading(true)
+    try {
+      await fetch(`/api/players/${id}`, { method: 'DELETE' })
+      setDeleteId(null)
+      await fetchPlayers()
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(fetchPlayers, 300)
@@ -254,7 +268,7 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
           ) : (
             <>
               {/* Desktop header */}
-              <div className="hidden lg:grid lg:grid-cols-[2fr_130px_70px_70px_90px_160px_40px] gap-4 px-5 py-3 border-b border-slate-700/50 bg-slate-800/40">
+              <div className="hidden lg:grid lg:grid-cols-[2fr_130px_70px_70px_90px_160px_80px] gap-4 px-5 py-3 border-b border-slate-700/50 bg-slate-800/40">
                 {['Player', 'Phone', 'Fee', 'Fine', 'Total', 'Status', ''].map((h) => (
                   <span key={h} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</span>
                 ))}
@@ -316,6 +330,10 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
                               className="text-xs px-2.5 py-1.5 border border-slate-600 text-slate-400 hover:border-blue-600 hover:text-blue-400 rounded-lg transition-all">
                               Edit
                             </button>
+                            <button onClick={() => setDeleteId(player._id)}
+                              className="text-xs px-2.5 py-1.5 border border-slate-600 text-slate-400 hover:border-red-600 hover:text-red-400 rounded-lg transition-all">
+                              <Trash2 size={11} />
+                            </button>
                             <Link href={`/player/${player._id}`} className="text-slate-600 hover:text-slate-300">
                               <ChevronRight size={15} />
                             </Link>
@@ -324,7 +342,7 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
                       </div>
 
                       {/* Desktop */}
-                      <div className="hidden lg:grid lg:grid-cols-[2fr_130px_70px_70px_90px_160px_40px] gap-4 px-5 py-3.5 items-center">
+                      <div className="hidden lg:grid lg:grid-cols-[2fr_130px_70px_70px_90px_160px_80px] gap-4 px-5 py-3.5 items-center">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${avatarColor} flex-shrink-0`}>
                             {player.name.charAt(0).toUpperCase()}
@@ -363,6 +381,12 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
                             className="p-1.5 text-slate-500 hover:text-blue-400 rounded-lg hover:bg-blue-900/20 transition-all" title="Edit"
                           >
                             ✎
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(player._id)}
+                            className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-red-900/20 transition-all" title="Delete"
+                          >
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
@@ -416,8 +440,8 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
               <input className="input-field" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
             </div>
             <div className="space-y-1.5">
-              <label className="label">Phone Number *</label>
-              <input className="input-field" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} required />
+              <label className="label">Phone Number</label>
+              <input className="input-field" value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="optional" />
             </div>
             <div className="space-y-1.5">
               <label className="label">Email (optional)</label>
@@ -436,6 +460,31 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <Modal title="Remove Player" onClose={() => setDeleteId(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-300">
+              Are you sure you want to remove{' '}
+              <span className="font-semibold text-white">
+                {players.find(p => p._id === deleteId)?.name}
+              </span>{' '}
+              from the active list? Their payment history will be kept.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button onClick={() => setDeleteId(null)} className="btn-ghost flex-1 text-sm">Cancel</button>
+              <button
+                onClick={() => handleDeletePlayer(deleteId)}
+                disabled={deleteLoading}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+              >
+                {deleteLoading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Remove Player
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </AdminLayout>
