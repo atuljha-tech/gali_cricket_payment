@@ -93,8 +93,8 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
     if (!player.payment._id) return
     setActionId(player._id)
     try {
-      await fetch(`/api/payments/${player.payment._id}`, { method: 'DELETE' })
-      fetchPlayers()
+      const res = await fetch(`/api/payments/${player.payment._id}`, { method: 'DELETE' })
+      if (res.ok) await fetchPlayers()
     } finally {
       setActionId(null)
     }
@@ -384,8 +384,8 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
               <input className="input-field" placeholder="Rahul Kumar" value={addForm.name} onChange={(e) => setAddForm({ ...addForm, name: e.target.value })} required />
             </div>
             <div className="space-y-1.5">
-              <label className="label">Phone Number *</label>
-              <input className="input-field" placeholder="9876543210" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} required />
+              <label className="label">Phone Number</label>
+              <input className="input-field" placeholder="9876543210 (optional)" value={addForm.phone} onChange={(e) => setAddForm({ ...addForm, phone: e.target.value })} />
             </div>
             <div className="space-y-1.5">
               <label className="label">Email (optional)</label>

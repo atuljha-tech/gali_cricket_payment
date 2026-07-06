@@ -27,13 +27,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   try {
     await dbConnect()
-    const payment = await Payment.findByIdAndUpdate(
-      params.id,
-      { status: 'pending', receiptNo: undefined, adminId: undefined, paidAt: undefined, fine: 0 },
-      { new: true }
-    )
+    const payment = await Payment.findByIdAndDelete(params.id)
     if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
-    return NextResponse.json({ payment, message: 'Payment undone' })
+    return NextResponse.json({ message: 'Payment undone' })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
