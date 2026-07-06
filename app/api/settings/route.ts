@@ -31,21 +31,26 @@ export async function PUT(req: NextRequest) {
 
     // Only Rishi can update QR / UPI fields
     const isSuperAdmin = admin.email === SUPERADMIN_EMAIL
-    const update: Record<string, unknown> = { monthlyFee, dailyFine, dueDate }
+
+    // Use $set explicitly so mongoose doesn't try to replace the whole doc
+    const setFields: Record<string, unknown> = {}
+    if (monthlyFee !== undefined) setFields.monthlyFee = Number(monthlyFee)
+    if (dailyFine  !== undefined) setFields.dailyFine  = Number(dailyFine)
+    if (dueDate    !== undefined) setFields.dueDate    = Number(dueDate)
     if (isSuperAdmin) {
-      if (qrImage !== undefined) update.qrImage = qrImage
-      if (upiId  !== undefined) update.upiId   = upiId
+      if (upiId    !== undefined) setFields.upiId    = upiId
+      if (qrImage  !== undefined) setFields.qrImage  = qrImage
     }
 
     const settings = await Settings.findOneAndUpdate(
       {},
-      update,
-      { upsert: true, new: true }
+      { $set: setFields },
+      { upsert: true, new: true, lean: true }
     )
 
     return NextResponse.json({ settings })
   } catch (err) {
-    console.error(err)
+    console.error('Settings update error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

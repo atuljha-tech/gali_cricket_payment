@@ -45,22 +45,24 @@ export default function SettingsClient({ adminName, adminEmail }: { adminName: s
   function handleQRUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5MB'); return }
-    // Compress to max 400px and 80% quality so the base64 stays small (~30KB)
+    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10MB'); return }
+    setError('')
+    // Compress to max 300px so the base64 stays tiny (~15-25KB) — safe for MongoDB
     const img = new window.Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(url)
-      const MAX = 400
+      const MAX = 300
       const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
       const canvas = document.createElement('canvas')
       canvas.width  = Math.round(img.width  * ratio)
       canvas.height = Math.round(img.height * ratio)
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      const compressed = canvas.toDataURL('image/jpeg', 0.80)
+      const compressed = canvas.toDataURL('image/jpeg', 0.75)
       setSettings(s => ({ ...s, qrImage: compressed }))
     }
+    img.onerror = () => { setError('Could not read image file') }
     img.src = url
   }
 
