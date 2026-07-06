@@ -7,6 +7,8 @@ import Admin from '@/models/Admin'
 import { verifyRequestToken } from '@/lib/auth'
 import { calculateFine } from '@/lib/fineCalculator'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/players — PUBLIC (home page) or admin
 export async function GET(req: NextRequest) {
   try {

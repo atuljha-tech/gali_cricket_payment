@@ -1,10 +1,8 @@
-import { cookies } from 'next/headers'
-import { verifyToken } from '@/lib/auth'
+// Pure static shell — no server-side work, no DB calls, no cookie reads.
+// Admin detection happens client-side via /api/auth/me so the page
+// renders the skeleton immediately and loads data in parallel.
 import GalleryClient from './GalleryClient'
 
 export default function GalleryPage() {
-  // Gallery is accessible to everyone (logged-in admins get delete button)
-  const token = cookies().get('admin_token')?.value
-  const admin = token ? verifyToken(token) : null
-  return <GalleryClient isAdmin={!!admin} adminName={admin?.name} adminEmail={admin?.email} />
+  return <GalleryClient />
 }

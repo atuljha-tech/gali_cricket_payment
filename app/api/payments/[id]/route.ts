@@ -3,6 +3,8 @@ import dbConnect from '@/lib/mongodb'
 import Payment from '@/models/Payment'
 import { verifyRequestToken } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/payments/[id] — get single payment (for receipt)
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {

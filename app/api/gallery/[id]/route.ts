@@ -3,6 +3,8 @@ import dbConnect from '@/lib/mongodb'
 import GalleryPhoto from '@/models/GalleryPhoto'
 import { deleteFromCloudinary } from '@/lib/cloudinary'
 
+export const dynamic = 'force-dynamic'
+
 // DELETE /api/gallery/[id] — admin only
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {

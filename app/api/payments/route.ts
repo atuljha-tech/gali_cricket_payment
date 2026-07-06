@@ -6,6 +6,8 @@ import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { calculateFine, generateReceiptNo } from '@/lib/fineCalculator'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/payments — admin, all payments with pagination
 export async function GET(req: NextRequest) {
   const admin = verifyRequestToken(req)

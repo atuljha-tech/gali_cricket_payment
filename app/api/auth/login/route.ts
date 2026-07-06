@@ -5,6 +5,8 @@ import Admin from '@/models/Admin'
 import { signToken } from '@/lib/auth'
 import { PREDEFINED_ADMINS } from '@/lib/adminConfig'
 
+export const dynamic = 'force-dynamic'
+
 const ALLOWED_EMAILS = PREDEFINED_ADMINS.map((admin) => admin.email)
 
 export async function POST(req: NextRequest) {

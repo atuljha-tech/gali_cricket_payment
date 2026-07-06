@@ -9,6 +9,8 @@ import dbConnect from '@/lib/mongodb'
 import GalleryPhoto from '@/models/GalleryPhoto'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   const hasCloudinary = !!(
     process.env.CLOUDINARY_CLOUD_NAME &&

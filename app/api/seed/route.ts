@@ -12,6 +12,8 @@ import Player from '@/models/Player'
 import Settings from '@/models/Settings'
 import { PREDEFINED_ADMINS, ADMIN_PASSWORD, PREDEFINED_PLAYERS } from '@/lib/adminConfig'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST() {
   try {
     await dbConnect()

@@ -6,6 +6,8 @@ import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { calculateFine } from '@/lib/fineCalculator'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/players/[id]
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {

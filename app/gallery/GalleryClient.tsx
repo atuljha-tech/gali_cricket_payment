@@ -10,8 +10,8 @@ import {
 
 interface Photo {
   _id: string
-  url: string           // full Cloudinary CDN URL
-  thumbnailUrl: string  // 400px Cloudinary URL for grid
+  url: string
+  thumbnailUrl: string
   uploadedAt: string
   uploaderName?: string
 }
@@ -318,18 +318,21 @@ function PublicGalleryHeader() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function GalleryClient({ isAdmin, adminName, adminEmail }: { isAdmin: boolean; adminName?: string; adminEmail?: string }) {
-  const [photos, setPhotos]         = useState<Photo[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [showUpload, setShowUpload] = useState(false)
+// No props needed — admin status detected client-side via /api/auth/me
+export default function GalleryClient() {
+  const [photos, setPhotos]           = useState<Photo[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [isAdmin, setIsAdmin]         = useState(false)
+  const [adminName, setAdminName]     = useState<string | undefined>()
+  const [adminEmail, setAdminEmail]   = useState<string | undefined>()
+  const [showUpload, setShowUpload]   = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
-  const [deleting, setDeleting]     = useState<string | null>(null)
-  const [page, setPage]             = useState(1)
-  const [pages, setPages]           = useState(1)
-  const [total, setTotal]           = useState(0)
+  const [deleting, setDeleting]       = useState<string | null>(null)
+  const [page, setPage]               = useState(1)
+  const [pages, setPages]             = useState(1)
+  const [total, setTotal]             = useState(0)
 
   const fetchPhotos = useCallback(async (p = 1) => {
-    if (p === 1) setLoading(true)
     try {
       const res = await fetch(`/api/gallery?page=${p}&limit=24`)
       const data = await res.json()
@@ -337,11 +340,24 @@ export default function GalleryClient({ isAdmin, adminName, adminEmail }: { isAd
       setTotal(data.total || 0)
       setPages(data.pages || 1)
     } finally {
-      setLoading(false)
+      if (p === 1) setLoading(false)
     }
   }, [])
 
-  useEffect(() => { fetchPhotos(1) }, [fetchPhotos])
+  useEffect(() => {
+    // Fire both in parallel — photos load immediately, admin check in background
+    fetchPhotos(1)
+    fetch('/api/auth/me')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.admin) {
+          setIsAdmin(true)
+          setAdminName(d.admin.name)
+          setAdminEmail(d.admin.email)
+        }
+      })
+      .catch(() => {})
+  }, [fetchPhotos])
 
   async function handleDelete(id: string) {
     setDeleting(id)

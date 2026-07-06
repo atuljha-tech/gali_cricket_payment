@@ -4,6 +4,10 @@ import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { SUPERADMIN_EMAIL } from '@/lib/adminConfig'
 
+// Force dynamic — never cache this route on Vercel CDN
+// Without this, Vercel treats it as static GET-only and returns 405 on PUT
+export const dynamic = 'force-dynamic'
+
 // GET /api/settings — public (players need fee info)
 export async function GET() {
   try {
@@ -29,17 +33,15 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const { monthlyFee, dailyFine, dueDate, qrImage, upiId } = body
 
-    // Only Rishi can update QR / UPI fields
     const isSuperAdmin = admin.email === SUPERADMIN_EMAIL
 
-    // Use $set explicitly so mongoose doesn't try to replace the whole doc
     const setFields: Record<string, unknown> = {}
     if (monthlyFee !== undefined) setFields.monthlyFee = Number(monthlyFee)
     if (dailyFine  !== undefined) setFields.dailyFine  = Number(dailyFine)
     if (dueDate    !== undefined) setFields.dueDate    = Number(dueDate)
     if (isSuperAdmin) {
-      if (upiId    !== undefined) setFields.upiId    = upiId
-      if (qrImage  !== undefined) setFields.qrImage  = qrImage
+      if (upiId   !== undefined) setFields.upiId   = upiId
+      if (qrImage !== undefined) setFields.qrImage = qrImage
     }
 
     const settings = await Settings.findOneAndUpdate(

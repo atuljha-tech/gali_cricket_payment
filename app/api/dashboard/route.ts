@@ -6,6 +6,8 @@ import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { calculateFine } from '@/lib/fineCalculator'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const admin = verifyRequestToken(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -3,6 +3,8 @@ import { verifyRequestToken } from '@/lib/auth'
 import dbConnect from '@/lib/mongodb'
 import Admin from '@/models/Admin'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   const payload = verifyRequestToken(req)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

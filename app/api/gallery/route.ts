@@ -3,6 +3,8 @@ import dbConnect from '@/lib/mongodb'
 import GalleryPhoto from '@/models/GalleryPhoto'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 
+export const dynamic = 'force-dynamic'
+
 // ── GET /api/gallery ─────────────────────────────────────────────────────────
 // Returns ALL photos — Cloudinary-hosted (url field) AND legacy base64 (imageData field)
 export async function GET(req: NextRequest) {
