@@ -4,7 +4,7 @@ import AdminLayout from '@/components/AdminLayout'
 import Link from 'next/link'
 import {
   Upload, X, Image as ImageIcon, Loader2,
-  Camera, Star, Trophy, ArrowLeft, Trash2,
+  Camera, Star, Trophy, ArrowLeft,
   ChevronLeft, ChevronRight
 } from 'lucide-react'
 
@@ -327,7 +327,6 @@ export default function GalleryClient() {
   const [adminEmail, setAdminEmail]   = useState<string | undefined>()
   const [showUpload, setShowUpload]   = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
-  const [deleting, setDeleting]       = useState<string | null>(null)
   const [page, setPage]               = useState(1)
   const [pages, setPages]             = useState(1)
   const [total, setTotal]             = useState(0)
@@ -358,17 +357,6 @@ export default function GalleryClient() {
       })
       .catch(() => {})
   }, [fetchPhotos])
-
-  async function handleDelete(id: string) {
-    setDeleting(id)
-    try {
-      await fetch(`/api/gallery/${id}`, { method: 'DELETE' })
-      setPhotos(prev => prev.filter(p => p._id !== id))
-      setTotal(t => t - 1)
-    } finally {
-      setDeleting(null)
-    }
-  }
 
   const Content = (
     <div className="min-h-screen">
@@ -446,17 +434,7 @@ export default function GalleryClient() {
                     decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
-                    <div className="flex justify-end">
-                      {isAdmin && (
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDelete(photo._id) }}
-                          disabled={deleting === photo._id}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-600/80 hover:bg-red-600 text-white transition-all"
-                        >
-                          {deleting === photo._id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                        </button>
-                      )}
-                    </div>
+                    <div />
                     <div className="flex items-end justify-between">
                       <div>
                         {photo.uploaderName && photo.uploaderName !== 'Anonymous' && (

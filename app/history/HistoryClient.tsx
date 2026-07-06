@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/AdminLayout'
-import { CheckCircle2, AlertCircle, FileText, IndianRupee, TrendingUp, Clock } from 'lucide-react'
+import { CheckCircle2, AlertCircle, FileText, IndianRupee, TrendingUp, Clock, Trash2, Loader2 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
 interface Payment {
@@ -29,6 +29,10 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
 
+  // Delete state
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
   const fetchHistory = useCallback(async () => {
     setLoading(true)
     try {
@@ -44,8 +48,22 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
 
   useEffect(() => { fetchHistory() }, [fetchHistory])
 
+  async function handleDelete() {
+    if (!confirmId) return
+    setDeleting(true)
+    try {
+      await fetch(`/api/payments/${confirmId}`, { method: 'DELETE' })
+      setPayments(prev => prev.filter(p => p._id !== confirmId))
+      setTotal(t => t - 1)
+      setConfirmId(null)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const collected = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.total, 0)
   const paidCount = payments.filter(p => p.status === 'paid').length
+  const confirmPayment = payments.find(p => p._id === confirmId)
 
   return (
     <AdminLayout adminName={adminName} adminEmail={adminEmail}>
@@ -116,7 +134,7 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
           ) : (
             <>
               {/* Desktop header */}
-              <div className="hidden md:grid md:grid-cols-[2fr_140px_80px_80px_90px_130px_50px] gap-4 px-5 py-3 border-b border-slate-700/40 bg-slate-800/40">
+              <div className="hidden md:grid md:grid-cols-[2fr_140px_80px_80px_90px_130px_80px] gap-4 px-5 py-3 border-b border-slate-700/40 bg-slate-800/40">
                 {['Player', 'Period', 'Fee', 'Fine', 'Total', 'Status', ''].map((h) => (
                   <span key={h} className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</span>
                 ))}
@@ -124,7 +142,8 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
 
               <div className="divide-y divide-slate-700/30">
                 {payments.map((p) => (
-                  <div key={p._id} className="hover:bg-slate-700/20 transition-colors">
+                  <div key={p._id} className="group hover:bg-slate-700/20 transition-colors">
+
                     {/* Mobile */}
                     <div className="md:hidden px-4 py-4 space-y-2">
                       <div className="flex items-center justify-between">
@@ -139,18 +158,26 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
                             : <span className="badge-pending"><Clock size={10} />Pending</span>}
                         </div>
                       </div>
-                      {p.receiptNo && (
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-slate-500 font-mono">{p.receiptNo}</p>
-                          <Link href={`/receipt/${p._id}`} className="text-xs text-green-400 hover:text-green-300 transition-colors">
-                            Receipt →
-                          </Link>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between">
+                        {p.receiptNo ? (
+                          <div className="flex items-center gap-3">
+                            <p className="text-xs text-slate-500 font-mono">{p.receiptNo}</p>
+                            <Link href={`/receipt/${p._id}`} className="text-xs text-green-400 hover:text-green-300 transition-colors">
+                              Receipt →
+                            </Link>
+                          </div>
+                        ) : <span />}
+                        <button
+                          onClick={() => setConfirmId(p._id)}
+                          className="flex items-center gap-1 text-xs px-2.5 py-1.5 border border-slate-600/60 text-slate-500 hover:border-red-500/60 hover:text-red-400 rounded-lg transition-all"
+                        >
+                          <Trash2 size={11} /> Delete
+                        </button>
+                      </div>
                     </div>
 
                     {/* Desktop */}
-                    <div className="hidden md:grid md:grid-cols-[2fr_140px_80px_80px_90px_130px_50px] gap-4 px-5 py-3.5 items-center">
+                    <div className="hidden md:grid md:grid-cols-[2fr_140px_80px_80px_90px_130px_80px] gap-4 px-5 py-3.5 items-center">
                       <div>
                         <p className="text-sm font-semibold text-white">{p.playerId?.name || '—'}</p>
                         <p className="text-xs text-slate-500">{p.playerId?.phone}</p>
@@ -166,13 +193,21 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
                           ? <span className="badge-late"><AlertCircle size={10} />Late</span>
                           : <span className="badge-pending"><Clock size={10} />Pending</span>}
                       </div>
-                      <div>
+                      {/* Receipt + Delete */}
+                      <div className="flex items-center gap-2">
                         {p.receiptNo ? (
                           <Link href={`/receipt/${p._id}`}
                             className="text-green-400 hover:text-green-300 transition-colors" title={p.receiptNo}>
                             <FileText size={15} />
                           </Link>
-                        ) : '—'}
+                        ) : <span className="w-4" />}
+                        <button
+                          onClick={() => setConfirmId(p._id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-600 hover:text-red-400 rounded transition-all"
+                          title="Delete record"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -185,26 +220,53 @@ export default function HistoryClient({ adminName, adminEmail }: { adminName: st
         {/* Pagination */}
         {pages > 1 && (
           <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-5 py-2.5 text-sm border border-slate-600/50 rounded-xl disabled:opacity-40 hover:border-slate-500 text-slate-300 transition-all"
-            >
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-5 py-2.5 text-sm border border-slate-600/50 rounded-xl disabled:opacity-40 hover:border-slate-500 text-slate-300 transition-all">
               Previous
             </button>
             <span className="text-sm text-slate-500 bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl">
               {page} / {pages}
             </span>
-            <button
-              onClick={() => setPage(p => Math.min(pages, p + 1))}
-              disabled={page === pages}
-              className="px-5 py-2.5 text-sm border border-slate-600/50 rounded-xl disabled:opacity-40 hover:border-slate-500 text-slate-300 transition-all"
-            >
+            <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages}
+              className="px-5 py-2.5 text-sm border border-slate-600/50 rounded-xl disabled:opacity-40 hover:border-slate-500 text-slate-300 transition-all">
               Next
             </button>
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmId && confirmPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-slate-800 border border-slate-700/60 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-red-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Trash2 size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white">Delete Payment Record?</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  This will permanently remove the payment record for{' '}
+                  <span className="text-white font-semibold">{confirmPayment.playerId?.name}</span>
+                  {' '}({MONTH_NAMES[confirmPayment.month]} {confirmPayment.year} · ₹{confirmPayment.total}).
+                  This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmId(null)}
+                className="flex-1 py-2.5 border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/60 rounded-xl text-sm font-medium transition-all">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-all">
+                {deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   )
 }
