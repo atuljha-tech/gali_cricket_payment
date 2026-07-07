@@ -46,9 +46,9 @@ export async function GET(req: NextRequest) {
     const paymentMap = new Map(payments.map(p => [p.playerId.toString(), p]))
 
     const result = players.map(player => {
-      const payment = paymentMap.get(String(player._id))
-      const fine = payment?.status === 'paid'
-        ? payment.fine
+      const pay = paymentMap.get(String(player._id))
+      const fine = pay?.status === 'paid'
+        ? (pay.fine as number)
         : calculateFine(year, month, dueDate, dailyFine)
       return {
         _id:         player._id,
@@ -57,10 +57,31 @@ export async function GET(req: NextRequest) {
         email:       player.email,
         joiningDate: player.joiningDate,
         active:      player.active,
-        payment: payment
-          ? { ...payment, fine }
-          : { status: 'pending' as const, fine, amount: fee, total: fee + fine },
+        payment: {
+          _id:       pay?._id,
+          status:    (pay?.status ?? 'pending') as 'paid' | 'pending',
+          fine,
+          amount:    (pay?.amount as number) ?? fee,
+          total:     pay ? (pay.amount as number) + fine : fee + fine,
+          paidAt:    pay?.paidAt as string | undefined,
+          receiptNo: pay?.receiptNo as string | undefined,
+          adminId:   pay?.adminId,
+        },
       }
+    })
+
+    // Sort: paid players (most recently paid first) → pending players (alphabetical)
+    result.sort((a, b) => {
+      const aPaid = a.payment.status === 'paid'
+      const bPaid = b.payment.status === 'paid'
+      if (aPaid && !bPaid) return -1
+      if (!aPaid && bPaid) return 1
+      if (aPaid && bPaid) {
+        const aTime = a.payment.paidAt ? new Date(a.payment.paidAt).getTime() : 0
+        const bTime = b.payment.paidAt ? new Date(b.payment.paidAt).getTime() : 0
+        return bTime - aTime
+      }
+      return a.name.localeCompare(b.name)
     })
 
     return NextResponse.json({

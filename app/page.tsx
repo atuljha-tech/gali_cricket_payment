@@ -85,7 +85,7 @@ export default function HomePage() {
 
           <div className="flex items-center gap-2">
             <Link href="/gallery"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all">
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all">
               <Star size={12} className="fill-amber-400" /> Memories
             </Link>
             <Link href="/qr"
