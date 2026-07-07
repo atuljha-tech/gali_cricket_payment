@@ -372,7 +372,6 @@ export default function GalleryClient() {
       return () => clearTimeout(t)
     }
   }, [loading, pages, page, fetchPhotos])
-
   const Content = (
     <div className="min-h-screen">
       {/* Hero */}

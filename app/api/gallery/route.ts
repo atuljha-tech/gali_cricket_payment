@@ -11,16 +11,13 @@ export async function GET(req: NextRequest) {
     await dbConnect()
     const { searchParams } = new URL(req.url)
     const page  = Math.max(1, parseInt(searchParams.get('page')  || '1'))
-    // First page: 6 photos (instant load), subsequent: 12
-    const defaultLimit = page === 1 ? 6 : 12
-    const limit = Math.min(24, parseInt(searchParams.get('limit') || String(defaultLimit)))
+    const limit = 12  // fixed — simple correct pagination
 
     const [rawPhotos, total] = await Promise.all([
       GalleryPhoto.find({})
         .sort({ uploadedAt: -1 })
-        .skip((page - 1) * (page === 1 ? limit : 12 * (page - 1)))
+        .skip((page - 1) * limit)
         .limit(limit)
-        // NEVER select imageData in list — can be megabytes of base64
         .select('url thumbnailUrl publicId uploadedAt uploaderName')
         .lean<Array<{
           _id: unknown
