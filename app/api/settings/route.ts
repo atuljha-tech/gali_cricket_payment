@@ -16,7 +16,9 @@ export async function GET() {
     if (!settings) {
       settings = await Settings.create({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
     }
-    return NextResponse.json({ settings })
+    return NextResponse.json({ settings }, {
+      headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' }
+    })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

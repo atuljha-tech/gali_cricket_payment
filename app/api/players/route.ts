@@ -87,6 +87,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       players: result,
       settings: { monthlyFee: fee, dailyFine, dueDate },
+    }, {
+      headers: { 'Cache-Control': 's-maxage=20, stale-while-revalidate=40' }
     })
   } catch (err) {
     console.error(err)

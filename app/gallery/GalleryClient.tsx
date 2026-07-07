@@ -322,6 +322,7 @@ function PublicGalleryHeader() {
 export default function GalleryClient() {
   const [photos, setPhotos]           = useState<Photo[]>([])
   const [loading, setLoading]         = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [isAdmin, setIsAdmin]         = useState(false)
   const [adminName, setAdminName]     = useState<string | undefined>()
   const [adminEmail, setAdminEmail]   = useState<string | undefined>()
@@ -332,14 +333,17 @@ export default function GalleryClient() {
   const [total, setTotal]             = useState(0)
 
   const fetchPhotos = useCallback(async (p = 1) => {
+    if (p === 1) setLoading(true)
+    else setLoadingMore(true)
     try {
-      const res = await fetch(`/api/gallery?page=${p}&limit=24`)
+      const res = await fetch(`/api/gallery?page=${p}`)
       const data = await res.json()
       setPhotos(prev => p === 1 ? (data.photos || []) : [...prev, ...(data.photos || [])])
       setTotal(data.total || 0)
       setPages(data.pages || 1)
     } finally {
       if (p === 1) setLoading(false)
+      else setLoadingMore(false)
     }
   }, [])
 
@@ -357,6 +361,17 @@ export default function GalleryClient() {
       })
       .catch(() => {})
   }, [fetchPhotos])
+
+  // Auto-load page 2 shortly after first paint — seamless background load
+  useEffect(() => {
+    if (pages > 1 && page === 1 && !loading) {
+      const t = setTimeout(() => {
+        setPage(2)
+        fetchPhotos(2)
+      }, 800)
+      return () => clearTimeout(t)
+    }
+  }, [loading, pages, page, fetchPhotos])
 
   const Content = (
     <div className="min-h-screen">
@@ -455,10 +470,10 @@ export default function GalleryClient() {
 
             {page < pages && (
               <div className="flex justify-center mt-10">
-                <button onClick={() => { const n = page + 1; setPage(n); fetchPhotos(n) }} disabled={loading}
+                <button onClick={() => { const n = page + 1; setPage(n); fetchPhotos(n) }} disabled={loadingMore}
                   className="flex items-center gap-2 px-8 py-3 border border-slate-600/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50">
-                  {loading ? <Loader2 size={15} className="animate-spin" /> : null}
-                  Load More Photos
+                  {loadingMore ? <Loader2 size={15} className="animate-spin" /> : null}
+                  {loadingMore ? 'Loading…' : 'Load More Photos'}
                 </button>
               </div>
             )}

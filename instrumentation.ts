@@ -1,67 +1,62 @@
 /**
- * Next.js Instrumentation Hook
- * Runs once on server startup — seeds the 4 admins and 23 players
- * automatically so no manual /api/seed call is ever needed.
+ * Next.js Instrumentation Hook — runs once on server startup.
+ * Seeds only if data is missing. Non-blocking so it doesn't slow cold starts.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { default: dbConnect } = await import('./lib/mongodb')
-    const { default: bcrypt }    = await import('bcryptjs')
-    const { default: Admin }     = await import('./models/Admin')
-    const { default: Player }    = await import('./models/Player')
-    const { default: Settings }  = await import('./models/Settings')
-    const { PREDEFINED_ADMINS, ADMIN_PASSWORD, PREDEFINED_PLAYERS } = await import('./lib/adminConfig')
+    // Run in background — don't await, never block the server boot
+    setImmediate(async () => {
+      try {
+        const { default: dbConnect } = await import('./lib/mongodb')
+        await dbConnect()
 
-    try {
-      await dbConnect()
+        const { default: Admin }   = await import('./models/Admin')
+        const { default: Player }  = await import('./models/Player')
+        const { default: Settings } = await import('./models/Settings')
 
-      // ── Seed admins ──────────────────────────────────────────────────
-      const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12)
-      for (const a of PREDEFINED_ADMINS) {
-        const existing = await Admin.findOne({ email: a.email })
-        if (existing) {
-          existing.name     = a.name
-          existing.password = hashedPassword
-          existing.role     = a.role
-          await existing.save()
-        } else {
-          await Admin.create({
-            name:     a.name,
-            email:    a.email,
-            password: hashedPassword,
-            role:     a.role,
-          })
+        // Check counts first — single fast query each, skip all work if already seeded
+        const [adminCount, playerCount, settingsCount] = await Promise.all([
+          Admin.countDocuments(),
+          Player.countDocuments(),
+          Settings.countDocuments(),
+        ])
+
+        if (adminCount >= 4 && playerCount >= 23 && settingsCount >= 1) {
+          return // Already seeded — nothing to do
         }
-      }
 
-      // ── Seed players (skip existing ones) ───────────────────────────
-      for (const name of PREDEFINED_PLAYERS) {
-        const exists = await Player.findOne({ name: name.trim() })
-        if (!exists) {
-          await Player.create({
-            name:        name.trim(),
-            phone:       '',
-            joiningDate: new Date('2024-01-01'),
-            active:      true,
-          })
+        // Only import heavy deps if seeding is actually needed
+        const { default: bcrypt } = await import('bcryptjs')
+        const { PREDEFINED_ADMINS, ADMIN_PASSWORD, PREDEFINED_PLAYERS } = await import('./lib/adminConfig')
+
+        if (adminCount < 4) {
+          const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12)
+          for (const a of PREDEFINED_ADMINS) {
+            await Admin.findOneAndUpdate(
+              { email: a.email },
+              { name: a.name, email: a.email, password: hashedPassword, role: a.role },
+              { upsert: true }
+            )
+          }
         }
-      }
 
-      // ── Default settings ─────────────────────────────────────────────
-      const count = await Settings.countDocuments()
-      if (count === 0) {
-        await Settings.create({
-          monthlyFee: 20,
-          dailyFine:  2,
-          dueDate:    10,
-          qrImage:    '',
-          upiId:      '',
-        })
-      }
+        if (playerCount < 23) {
+          const existing = await Player.distinct('name')
+          const existingSet = new Set(existing)
+          const toCreate = PREDEFINED_PLAYERS
+            .filter(name => !existingSet.has(name.trim()))
+            .map(name => ({ name: name.trim(), phone: '', joiningDate: new Date('2024-01-01'), active: true }))
+          if (toCreate.length) await Player.insertMany(toCreate, { ordered: false })
+        }
 
-      console.log('✅ GOC auto-seed complete')
-    } catch (err) {
-      console.error('❌ GOC auto-seed error:', err)
-    }
+        if (settingsCount === 0) {
+          await Settings.create({ monthlyFee: 20, dailyFine: 2, dueDate: 10, qrImage: '', upiId: '' })
+        }
+
+        console.log('✅ GOC seed complete')
+      } catch (err) {
+        console.error('❌ GOC seed error:', err)
+      }
+    })
   }
 }

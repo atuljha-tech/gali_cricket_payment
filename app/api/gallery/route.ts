@@ -6,52 +6,48 @@ import { uploadToCloudinary } from '@/lib/cloudinary'
 export const dynamic = 'force-dynamic'
 
 // ── GET /api/gallery ─────────────────────────────────────────────────────────
-// Returns ALL photos — Cloudinary-hosted (url field) AND legacy base64 (imageData field)
 export async function GET(req: NextRequest) {
   try {
     await dbConnect()
     const { searchParams } = new URL(req.url)
     const page  = Math.max(1, parseInt(searchParams.get('page')  || '1'))
-    const limit = Math.min(50, parseInt(searchParams.get('limit') || '24'))
+    // First page: 6 photos (instant load), subsequent: 12
+    const defaultLimit = page === 1 ? 6 : 12
+    const limit = Math.min(24, parseInt(searchParams.get('limit') || String(defaultLimit)))
 
     const [rawPhotos, total] = await Promise.all([
       GalleryPhoto.find({})
         .sort({ uploadedAt: -1 })
-        .skip((page - 1) * limit)
+        .skip((page - 1) * (page === 1 ? limit : 12 * (page - 1)))
         .limit(limit)
-        .select('url thumbnailUrl publicId imageData thumbnail uploadedAt uploaderName')
+        // NEVER select imageData in list — can be megabytes of base64
+        .select('url thumbnailUrl publicId uploadedAt uploaderName')
         .lean<Array<{
           _id: unknown
           url?: string
           thumbnailUrl?: string
           publicId?: string
-          imageData?: string
-          thumbnail?: string
           uploadedAt: Date
           uploaderName?: string
         }>>(),
       GalleryPhoto.countDocuments(),
     ])
 
-    // Normalise: every photo gets a `url` and `thumbnailUrl`
-    // New photos → Cloudinary CDN URLs
-    // Old photos → base64 imageData / thumbnail fields (still works)
-    const photos = rawPhotos.map(p => ({
-      _id:          p._id,
-      url:          p.url          || p.imageData  || '',   // full image
-      thumbnailUrl: p.thumbnailUrl || p.thumbnail  || p.imageData || '', // grid
-      publicId:     p.publicId     || '',
-      uploadedAt:   p.uploadedAt,
-      uploaderName: p.uploaderName || 'Anonymous',
-      isLegacy:     !p.url && !!p.imageData,  // flag for migration
-    })).filter(p => p.url !== '')  // skip truly empty records
+    const photos = rawPhotos
+      .map(p => ({
+        _id:          p._id,
+        url:          p.url          || '',
+        thumbnailUrl: p.thumbnailUrl || p.url || '',
+        publicId:     p.publicId     || '',
+        uploadedAt:   p.uploadedAt,
+        uploaderName: p.uploaderName || 'Anonymous',
+      }))
+      .filter(p => p.url !== '')
 
-    return NextResponse.json({
-      photos,
-      total: photos.length < limit ? (page - 1) * limit + photos.length : total,
-      page,
-      pages: Math.ceil(total / limit),
-    })
+    const res = NextResponse.json({ photos, total, page, pages: Math.ceil(total / limit) })
+    // Cache gallery list for 30 seconds on CDN — photos don't change every second
+    res.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    return res
   } catch (err) {
     console.error('Gallery GET error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -59,7 +55,6 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST /api/gallery ────────────────────────────────────────────────────────
-// Uploads to Cloudinary if credentials exist, otherwise stores as base64 fallback
 export async function POST(req: NextRequest) {
   try {
     await dbConnect()
@@ -78,11 +73,9 @@ export async function POST(req: NextRequest) {
     let photoData: Record<string, string>
 
     if (hasCloudinary) {
-      // Upload to Cloudinary CDN
       const { url, publicId, thumbnailUrl } = await uploadToCloudinary(imageData)
       photoData = { url, thumbnailUrl, publicId, imageData: '', thumbnail: '' }
     } else {
-      // Fallback: store base64 directly (works without Cloudinary setup)
       photoData = { url: '', thumbnailUrl: '', publicId: '', imageData, thumbnail: imageData }
     }
 
