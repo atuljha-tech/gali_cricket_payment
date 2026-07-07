@@ -10,39 +10,45 @@ export async function GET(req: NextRequest) {
   try {
     await dbConnect()
     const { searchParams } = new URL(req.url)
-    const page  = Math.max(1, parseInt(searchParams.get('page')  || '1'))
-    const limit = 12  // fixed — simple correct pagination
+    const page  = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = 12
 
     const [rawPhotos, total] = await Promise.all([
       GalleryPhoto.find({})
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .select('url thumbnailUrl publicId uploadedAt uploaderName')
+        // Select BOTH cloudinary fields AND legacy base64 fields
+        .select('url thumbnailUrl publicId imageData thumbnail uploadedAt uploaderName')
         .lean<Array<{
           _id: unknown
           url?: string
           thumbnailUrl?: string
           publicId?: string
+          imageData?: string
+          thumbnail?: string
           uploadedAt: Date
           uploaderName?: string
         }>>(),
       GalleryPhoto.countDocuments(),
     ])
 
-    const photos = rawPhotos
-      .map(p => ({
-        _id:          p._id,
-        url:          p.url          || '',
-        thumbnailUrl: p.thumbnailUrl || p.url || '',
-        publicId:     p.publicId     || '',
-        uploadedAt:   p.uploadedAt,
-        uploaderName: p.uploaderName || 'Anonymous',
-      }))
-      .filter(p => p.url !== '')
+    const photos = rawPhotos.map(p => ({
+      _id:          p._id,
+      // Cloudinary URL if available, otherwise fall back to base64
+      url:          p.url       || p.imageData  || '',
+      thumbnailUrl: p.thumbnailUrl || p.thumbnail || p.imageData || '',
+      publicId:     p.publicId  || '',
+      uploadedAt:   p.uploadedAt,
+      uploaderName: p.uploaderName || 'Anonymous',
+    })).filter(p => p.url !== '') // only skip truly empty records
 
-    const res = NextResponse.json({ photos, total, page, pages: Math.ceil(total / limit) })
-    // Cache gallery list for 30 seconds on CDN — photos don't change every second
+    const res = NextResponse.json({
+      photos,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    })
     res.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
     return res
   } catch (err) {
