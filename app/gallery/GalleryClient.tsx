@@ -16,20 +16,22 @@ interface Photo {
   uploaderName?: string
 }
 
-// ── Compress via canvas before sending to server ──────────────────────────────
-function compressImage(file: File, maxDim: number, quality: number): Promise<string> {
+// ── Compress via canvas — aggressive compression to keep uploads small ─────────
+function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(url)
-      const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+      // Max 800px — enough quality for a gallery, keeps base64 under 80KB per photo
+      const MAX = 800
+      const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
       const w = Math.round(img.width * ratio)
       const h = Math.round(img.height * ratio)
       const canvas = document.createElement('canvas')
       canvas.width = w; canvas.height = h
       canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-      resolve(canvas.toDataURL('image/jpeg', quality))
+      resolve(canvas.toDataURL('image/jpeg', 0.70))
     }
     img.onerror = reject
     img.src = url
@@ -160,34 +162,25 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     if (!previews.length) return
     setLoading(true); setError(''); setDone(0)
     const name = uploaderName.trim() || 'Anonymous'
-    const total = previews.length
 
-    // Compress all first (parallel — fast)
-    const compressed = await Promise.all(
-      previews.map(p => compressImage(p.file, 1400, 0.82))
-    )
-
-    // Upload in batches of 4 (parallel per batch)
-    let completed = 0
-    const BATCH = 4
-    for (let i = 0; i < compressed.length; i += BATCH) {
-      await Promise.all(
-        compressed.slice(i, i + BATCH).map(async imageData => {
-          try {
-            const res = await fetch('/api/gallery', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageData, uploaderName: name }),
-            })
-            if (!res.ok) setError('Some uploads failed — check your connection')
-          } catch {
-            setError('Network error during upload')
-          } finally {
-            completed++
-            setDone(completed)
-          }
+    // Upload one at a time — compress then upload immediately
+    // Avoids holding many large base64 strings in memory at once
+    for (let i = 0; i < previews.length; i++) {
+      try {
+        const imageData = await compressImage(previews[i].file)
+        const res = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData, uploaderName: name }),
         })
-      )
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}))
+          setError(`Photo ${i + 1} failed: ${d.error || 'unknown error'}`)
+        }
+      } catch {
+        setError(`Photo ${i + 1} failed — check your connection`)
+      }
+      setDone(i + 1)
     }
 
     setLoading(false)
@@ -331,6 +324,7 @@ export default function GalleryClient() {
   const [page, setPage]               = useState(1)
   const [pages, setPages]             = useState(1)
   const [total, setTotal]             = useState(0)
+  const sentinelRef                   = useRef<HTMLDivElement>(null)
 
   const fetchPhotos = useCallback(async (p = 1) => {
     if (p === 1) setLoading(true)
@@ -348,30 +342,35 @@ export default function GalleryClient() {
   }, [])
 
   useEffect(() => {
-    // Fire both in parallel — photos load immediately, admin check in background
     fetchPhotos(1)
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.admin) {
-          setIsAdmin(true)
-          setAdminName(d.admin.name)
-          setAdminEmail(d.admin.email)
-        }
-      })
+      .then(d => { if (d?.admin) { setIsAdmin(true); setAdminName(d.admin.name); setAdminEmail(d.admin.email) } })
       .catch(() => {})
   }, [fetchPhotos])
 
-  // Auto-load page 2 shortly after first paint — seamless background load
+  // IntersectionObserver — auto-load next page when sentinel enters viewport
   useEffect(() => {
-    if (pages > 1 && page === 1 && !loading) {
-      const t = setTimeout(() => {
-        setPage(2)
-        fetchPhotos(2)
-      }, 800)
-      return () => clearTimeout(t)
-    }
-  }, [loading, pages, page, fetchPhotos])
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !loadingMore && !loading) {
+          setPage(prev => {
+            if (prev < pages) {
+              const next = prev + 1
+              fetchPhotos(next)
+              return next
+            }
+            return prev
+          })
+        }
+      },
+      { rootMargin: '300px' } // trigger 300px before bottom
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadingMore, loading, pages, fetchPhotos])
   const Content = (
     <div className="min-h-screen">
       {/* Hero */}
@@ -467,16 +466,14 @@ export default function GalleryClient() {
               ))}
             </div>
 
-            {page < pages && (
-              <div className="flex justify-center mt-10">
-                <button onClick={() => { const n = page + 1; setPage(n); fetchPhotos(n) }} disabled={loadingMore}
-                  className="flex items-center gap-2 px-8 py-3 border border-slate-600/50 hover:border-slate-500 text-slate-300 hover:text-white rounded-xl text-sm font-medium transition-all disabled:opacity-50">
-                  {loadingMore ? <Loader2 size={15} className="animate-spin" /> : null}
-                  {loadingMore ? 'Loading…' : 'Load More Photos'}
-                </button>
+            {/* Invisible sentinel — IntersectionObserver triggers next page load */}
+            <div ref={sentinelRef} className="h-1" />
+            {loadingMore && (
+              <div className="flex justify-center mt-6 mb-2">
+                <Loader2 size={22} className="animate-spin text-slate-500" />
               </div>
             )}
-            <p className="text-center text-xs text-slate-600 mt-8">{photos.length} of {total} photos · GOC Memories Gallery</p>
+            <p className="text-center text-xs text-slate-600 mt-4">{photos.length} of {total} photos · GOC Memories Gallery</p>
           </>
         )}
       </div>

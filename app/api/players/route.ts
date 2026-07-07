@@ -26,22 +26,24 @@ export async function GET(req: NextRequest) {
       ]
     }
 
-    const [players, settings] = await Promise.all([
-      Player.find(query).sort({ name: 1 }).lean<Array<{
-        _id: unknown; name: string; phone?: string; email?: string; joiningDate: Date; active: boolean
-      }>>(),
-      Settings.findOne().lean<{ monthlyFee: number; dailyFine: number; dueDate: number } | null>(),
+    const [players, settings, payments] = await Promise.all([
+      Player.find(query)
+        .select('_id name phone email joiningDate active')
+        .sort({ name: 1 })
+        .lean<Array<{ _id: unknown; name: string; phone?: string; email?: string; joiningDate: Date; active: boolean }>>(),
+      Settings.findOne()
+        .select('monthlyFee dailyFine dueDate')
+        .lean<{ monthlyFee: number; dailyFine: number; dueDate: number } | null>(),
+      // Fetch payments in the same Promise.all — no sequential wait
+      Payment.find({ month, year })
+        .select('playerId status amount fine total paidAt receiptNo adminId')
+        .populate('adminId', 'name')
+        .lean(),
     ])
 
     const fee       = settings?.monthlyFee ?? 20
     const dailyFine = settings?.dailyFine  ?? 2
     const dueDate   = settings?.dueDate    ?? 10
-
-    // Fetch payments for this month/year and populate adminId → name
-    const playerIds = players.map(p => p._id)
-    const payments  = await Payment.find({ playerId: { $in: playerIds }, month, year })
-      .populate('adminId', 'name')
-      .lean()
 
     const paymentMap = new Map(payments.map(p => [p.playerId.toString(), p]))
 
