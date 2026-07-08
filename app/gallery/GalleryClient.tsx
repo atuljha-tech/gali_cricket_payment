@@ -158,10 +158,11 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     })
   }
 
-  async function handleUpload() {
+      async function handleUpload() {
     if (!previews.length) return
     setLoading(true); setError(''); setDone(0)
     const name = uploaderName.trim() || 'Anonymous'
+    const errors = []
 
     // Upload one at a time — compress then upload immediately
     // Avoids holding many large base64 strings in memory at once
@@ -171,21 +172,25 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         const res = await fetch('/api/gallery', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageData, uploaderName: name }),
+          body: JSON.stringify({ imageData, uploaderName: name })
         })
         if (!res.ok) {
           const d = await res.json().catch(() => ({}))
-          setError(`Photo ${i + 1} failed: ${d.error || 'unknown error'}`)
+          errors.push(`Photo ${i + 1} failed: ${d.error || 'unknown error'}`)
         }
-      } catch {
-        setError(`Photo ${i + 1} failed — check your connection`)
+      } catch (err) {
+        errors.push(`Photo ${i + 1} failed — check your connection`)
       }
       setDone(i + 1)
     }
 
     setLoading(false)
-    onSuccess()
-    onClose()
+    if (errors.length > 0) {
+      setError(errors.join(' '))
+    } else {
+      onSuccess()
+      onClose()
+    }
   }
 
   const progress = previews.length ? Math.round((done / previews.length) * 100) : 0

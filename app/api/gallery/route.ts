@@ -77,6 +77,9 @@ export async function POST(req: NextRequest) {
 
     if (hasCloudinary) {
       const { url, publicId, thumbnailUrl } = await uploadToCloudinary(imageData)
+      if (!url || !publicId || !thumbnailUrl) {
+        throw new Error('Invalid Cloudinary response')
+      }
       photoData = { url, thumbnailUrl, publicId, imageData: '', thumbnail: '' }
     } else {
       photoData = { url: '', thumbnailUrl: '', publicId: '', imageData, thumbnail: imageData }
@@ -92,5 +95,4 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Gallery upload error:', err)
     return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
-  }
-}
+  }}
