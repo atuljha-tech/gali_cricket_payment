@@ -16,25 +16,42 @@ interface Photo {
   uploaderName?: string
 }
 
-// ── Compress via canvas — aggressive compression to keep uploads small ─────────
+// ── Compress via canvas — optimized for mobile & fast uploads ─────────────────
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(url)
-      // Max 800px — enough quality for a gallery, keeps base64 under 80KB per photo
-      const MAX = 800
+      // Reduced to 600px for smaller file size, works great on all devices
+      const MAX = 600
       const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
       const w = Math.round(img.width * ratio)
       const h = Math.round(img.height * ratio)
       const canvas = document.createElement('canvas')
       canvas.width = w; canvas.height = h
       canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-      resolve(canvas.toDataURL('image/jpeg', 0.70))
+      // JPEG quality 0.60 for good balance of quality vs size
+      resolve(canvas.toDataURL('image/jpeg', 0.60))
     }
     img.onerror = reject
     img.src = url
+  })
+}
+
+// ── Aggressive fallback compression for large files ──────────────────────────
+function compressImageAggressive(imageDataUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 400
+      canvas.height = Math.round(400 * (img.height / img.width))
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.40))
+    }
+    img.onerror = reject
+    img.src = imageDataUrl
   })
 }
 
@@ -142,9 +159,9 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const fileRef = useRef<HTMLInputElement>(null)
 
   function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 15 * 1024 * 1024)
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024)
     const skipped = Array.from(files).length - arr.length
-    if (skipped) setError(`${skipped} file(s) skipped (not an image or over 15MB)`)
+    if (skipped) setError(`${skipped} file(s) skipped (not an image or over 10MB)`)
     setPreviews(prev => {
       const newOnes = arr.filter(f => !prev.some(p => p.file.name === f.name && p.file.size === f.size))
       return [...prev, ...newOnes.map(f => ({ file: f, objectUrl: URL.createObjectURL(f) }))]
@@ -158,35 +175,83 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     })
   }
 
-      async function handleUpload() {
+  async function handleUpload() {
     if (!previews.length) return
     setLoading(true); setError(''); setDone(0)
     const name = uploaderName.trim() || 'Anonymous'
-    const errors = []
-
-    // Upload one at a time — compress then upload immediately
-    // Avoids holding many large base64 strings in memory at once
-    for (let i = 0; i < previews.length; i++) {
-      try {
-        const imageData = await compressImage(previews[i].file)
-        const res = await fetch('/api/gallery', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageData, uploaderName: name })
-        })
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}))
-          errors.push(`Photo ${i + 1} failed: ${d.error || 'unknown error'}`)
+    const errors: string[] = []
+    
+    // Upload in batches of 3 to prevent overwhelming the server
+    const BATCH_SIZE = 3
+    
+    for (let batchStart = 0; batchStart < previews.length; batchStart += BATCH_SIZE) {
+      const batch = previews.slice(batchStart, batchStart + BATCH_SIZE)
+      
+      for (let i = 0; i < batch.length; i++) {
+        const photoIndex = batchStart + i + 1
+        try {
+          // First attempt with normal compression
+          let imageData = await compressImage(batch[i].file)
+          let uploadSuccess = false
+          let retries = 2
+          
+          while (retries >= 0 && !uploadSuccess) {
+            try {
+              const res = await fetch('/api/gallery', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData, uploaderName: name })
+              })
+              
+              if (res.ok) {
+                uploadSuccess = true
+                break
+              }
+              
+              const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+              
+              // If file too large (413), try aggressive compression
+              if (res.status === 413 && retries > 0) {
+                console.log(`Photo ${photoIndex} too large, trying harder compression...`)
+                imageData = await compressImageAggressive(imageData)
+                retries--
+                continue
+              }
+              
+              // For other errors, try once more
+              if (retries > 0) {
+                console.log(`Photo ${photoIndex} failed with "${errorData.error}", retrying...`)
+                retries--
+                continue
+              }
+              
+              throw new Error(errorData.error || `Server error (${res.status})`)
+            } catch (fetchError) {
+              if (retries <= 0 || uploadSuccess) throw fetchError
+              retries--
+            }
+          }
+          
+          if (!uploadSuccess) {
+            errors.push(`Photo ${photoIndex} failed after retries`)
+          }
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Connection error'
+          errors.push(`Photo ${photoIndex}: ${errorMsg}`)
+          console.error(`Photo ${photoIndex} upload error:`, err)
         }
-      } catch (err) {
-        errors.push(`Photo ${i + 1} failed — check your connection`)
+        setDone(photoIndex)
       }
-      setDone(i + 1)
+      
+      // Small delay between batches to let server breathe
+      if (batchStart + BATCH_SIZE < previews.length) {
+        await new Promise(r => setTimeout(r, 500))
+      }
     }
 
     setLoading(false)
     if (errors.length > 0) {
-      setError(errors.join(' '))
+      setError(errors.join('. '))
     } else {
       onSuccess()
       onClose()
@@ -231,7 +296,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-300">Drop photos here or click to browse</p>
-                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · up to 15MB each · select as many as you want</p>
+                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · up to 10MB each · select as many as you want</p>
               </div>
               {previews.length > 0 && <p className="text-xs text-green-400 font-semibold">Click to add more</p>}
             </div>
@@ -316,7 +381,6 @@ function PublicGalleryHeader() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-// No props needed — admin status detected client-side via /api/auth/me
 export default function GalleryClient() {
   const [photos, setPhotos]           = useState<Photo[]>([])
   const [loading, setLoading]         = useState(true)
@@ -376,6 +440,7 @@ export default function GalleryClient() {
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [loadingMore, loading, pages, fetchPhotos])
+
   const Content = (
     <div className="min-h-screen">
       {/* Hero */}

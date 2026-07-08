@@ -1,11 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable instrumentation.ts (auto-seed on startup)
   experimental: {
     instrumentationHook: true,
   },
   images: {
     domains: ['res.cloudinary.com'],
+  },
+  // This is the key fix - allows larger uploads
+  serverRuntimeConfig: {
+    maxBodySize: '100mb',
   },
 }
 

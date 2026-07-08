@@ -4,8 +4,8 @@ import GalleryPhoto from '@/models/GalleryPhoto'
 import { uploadToCloudinary } from '@/lib/cloudinary'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
-// ── GET /api/gallery ─────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
     await dbConnect()
@@ -18,30 +18,19 @@ export async function GET(req: NextRequest) {
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        // Select BOTH cloudinary fields AND legacy base64 fields
         .select('url thumbnailUrl publicId imageData thumbnail uploadedAt uploaderName')
-        .lean<Array<{
-          _id: unknown
-          url?: string
-          thumbnailUrl?: string
-          publicId?: string
-          imageData?: string
-          thumbnail?: string
-          uploadedAt: Date
-          uploaderName?: string
-        }>>(),
+        .lean(),
       GalleryPhoto.countDocuments(),
     ])
 
     const photos = rawPhotos.map(p => ({
       _id:          p._id,
-      // Cloudinary URL if available, otherwise fall back to base64
       url:          p.url       || p.imageData  || '',
       thumbnailUrl: p.thumbnailUrl || p.thumbnail || p.imageData || '',
       publicId:     p.publicId  || '',
       uploadedAt:   p.uploadedAt,
       uploaderName: p.uploaderName || 'Anonymous',
-    })).filter(p => p.url !== '') // only skip truly empty records
+    })).filter(p => p.url !== '')
 
     const res = NextResponse.json({
       photos,
@@ -57,14 +46,38 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── POST /api/gallery ────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
+  console.log('📸 Gallery upload started')
   try {
     await dbConnect()
-    const { imageData, uploaderName } = await req.json()
+    
+    let body
+    try {
+      body = await req.json()
+    } catch (parseError) {
+      console.error('❌ Failed to parse request body:', parseError)
+      return NextResponse.json({ 
+        error: 'Request too large or invalid JSON. Try uploading fewer photos at once.' 
+      }, { status: 413 })
+    }
+    
+    const { imageData, uploaderName } = body
 
-    if (!imageData) return NextResponse.json({ error: 'Image data is required' }, { status: 400 })
-    if (!imageData.startsWith('data:image/')) return NextResponse.json({ error: 'Invalid image format' }, { status: 400 })
+    if (!imageData) {
+      return NextResponse.json({ error: 'Image data is required' }, { status: 400 })
+    }
+    
+    if (!imageData.startsWith('data:image/')) {
+      return NextResponse.json({ error: 'Invalid image format' }, { status: 400 })
+    }
+
+    const base64Size = imageData.length * 0.75 / (1024 * 1024)
+    console.log(`📊 Image size: ~${base64Size.toFixed(2)}MB`)
+    if (base64Size > 10) {
+      return NextResponse.json({ 
+        error: 'Image too large. Please compress or use a smaller photo.' 
+      }, { status: 413 })
+    }
 
     const hasCloudinary = !!(
       process.env.CLOUDINARY_CLOUD_NAME &&
@@ -73,26 +86,39 @@ export async function POST(req: NextRequest) {
       process.env.CLOUDINARY_CLOUD_NAME !== 'your_cloud_name'
     )
 
-    let photoData: Record<string, string>
-
-    if (hasCloudinary) {
-      const { url, publicId, thumbnailUrl } = await uploadToCloudinary(imageData)
-      if (!url || !publicId || !thumbnailUrl) {
-        throw new Error('Invalid Cloudinary response')
-      }
-      photoData = { url, thumbnailUrl, publicId, imageData: '', thumbnail: '' }
-    } else {
-      photoData = { url: '', thumbnailUrl: '', publicId: '', imageData, thumbnail: imageData }
+    if (!hasCloudinary) {
+      console.error('❌ Cloudinary not configured')
+      return NextResponse.json({ 
+        error: 'Upload service not configured. Contact admin.' 
+      }, { status: 500 })
     }
 
+    console.log('☁️ Uploading to Cloudinary...')
+    const { url, publicId, thumbnailUrl } = await uploadToCloudinary(imageData)
+    
+    if (!url || !publicId || !thumbnailUrl) {
+      throw new Error('Invalid Cloudinary response')
+    }
+    console.log('✅ Cloudinary upload successful:', publicId)
+
     const photo = await GalleryPhoto.create({
-      ...photoData,
+      url,
+      thumbnailUrl,
+      publicId,
+      imageData: '',
+      thumbnail: '',
       uploaderName: uploaderName?.trim() || 'Anonymous',
-      uploadedAt:   new Date(),
+      uploadedAt: new Date(),
     })
 
+    console.log('💾 Saved to database:', photo._id)
     return NextResponse.json({ photo }, { status: 201 })
+    
   } catch (err) {
-    console.error('Gallery upload error:', err)
-    return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 })
-  }}
+    console.error('❌ Gallery upload error:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ 
+      error: `Upload failed: ${errorMessage}. Please try again.` 
+    }, { status: 500 })
+  }
+}
