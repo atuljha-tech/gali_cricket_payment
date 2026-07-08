@@ -16,46 +16,40 @@ interface Photo {
   uploaderName?: string
 }
 
-// ── Compress via canvas — optimized for mobile & fast uploads ─────────────────
-function compressImage(file: File): Promise<string> {
+// Compress image - creates full size + thumbnail
+function compressImage(file: File): Promise<{ full: string; thumbnail: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
       URL.revokeObjectURL(url)
-      // Reduced to 600px for smaller file size, works great on all devices
-      const MAX = 600
-      const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
-      const w = Math.round(img.width * ratio)
-      const h = Math.round(img.height * ratio)
-      const canvas = document.createElement('canvas')
-      canvas.width = w; canvas.height = h
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
-      // JPEG quality 0.60 for good balance of quality vs size
-      resolve(canvas.toDataURL('image/jpeg', 0.60))
+      
+      // Full image - 800px max
+      const fullCanvas = document.createElement('canvas')
+      const maxFull = 800
+      const fullRatio = Math.min(maxFull / img.width, maxFull / img.height, 1)
+      fullCanvas.width = Math.round(img.width * fullRatio)
+      fullCanvas.height = Math.round(img.height * fullRatio)
+      fullCanvas.getContext('2d')!.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
+      const full = fullCanvas.toDataURL('image/jpeg', 0.65)
+      
+      // Thumbnail - 300px max for fast loading
+      const thumbCanvas = document.createElement('canvas')
+      const maxThumb = 300
+      const thumbRatio = Math.min(maxThumb / img.width, maxThumb / img.height, 1)
+      thumbCanvas.width = Math.round(img.width * thumbRatio)
+      thumbCanvas.height = Math.round(img.height * thumbRatio)
+      thumbCanvas.getContext('2d')!.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
+      const thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.50)
+      
+      resolve({ full, thumbnail })
     }
     img.onerror = reject
     img.src = url
   })
 }
 
-// ── Aggressive fallback compression for large files ──────────────────────────
-function compressImageAggressive(imageDataUrl: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 400
-      canvas.height = Math.round(400 * (img.height / img.width))
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', 0.40))
-    }
-    img.onerror = reject
-    img.src = imageDataUrl
-  })
-}
-
-// ── Lightbox with prev / next navigation ─────────────────────────────────────
+// Lightbox
 function Lightbox({
   photos, index, onClose, onNav,
 }: {
@@ -68,7 +62,6 @@ function Lightbox({
   const hasPrev = index > 0
   const hasNext = index < photos.length - 1
 
-  // Keyboard navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape')     onClose()
@@ -80,7 +73,6 @@ function Lightbox({
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
   }, [index, hasPrev, hasNext, onClose, onNav])
 
-  // Touch swipe
   const touchStartX = useRef<number>(0)
   function onTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX }
   function onTouchEnd(e: React.TouchEvent) {
@@ -96,30 +88,19 @@ function Lightbox({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-all"
-      >
+      <button onClick={onClose}
+        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white">
         <X size={18} />
       </button>
-
-      {/* Counter */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 text-xs text-white/60 bg-black/40 px-3 py-1 rounded-full">
         {index + 1} / {photos.length}
       </div>
-
-      {/* Prev */}
       {hasPrev && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onNav(index - 1) }}
-          className="absolute left-3 md:left-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white transition-all active:scale-95"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onNav(index - 1) }}
+          className="absolute left-3 md:left-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white">
           <ChevronLeft size={22} />
         </button>
       )}
-
-      {/* Image */}
       <img
         src={photo.url}
         alt={photo.uploaderName || 'GOC memory'}
@@ -127,18 +108,12 @@ function Lightbox({
         onClick={(e) => e.stopPropagation()}
         draggable={false}
       />
-
-      {/* Next */}
       {hasNext && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onNav(index + 1) }}
-          className="absolute right-3 md:right-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white transition-all active:scale-95"
-        >
+        <button onClick={(e) => { e.stopPropagation(); onNav(index + 1) }}
+          className="absolute right-3 md:right-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white">
           <ChevronRight size={22} />
         </button>
       )}
-
-      {/* Caption */}
       {(photo.uploaderName && photo.uploaderName !== 'Anonymous') && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-xs text-white/60 bg-black/40 px-3 py-1 rounded-full">
           📸 {photo.uploaderName} · {new Date(photo.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -148,7 +123,7 @@ function Lightbox({
   )
 }
 
-// ── Multi-Upload Modal ────────────────────────────────────────────────────────
+// Upload Modal
 function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [previews, setPreviews]         = useState<{ file: File; objectUrl: string }[]>([])
   const [uploaderName, setUploaderName] = useState('')
@@ -159,9 +134,8 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const fileRef = useRef<HTMLInputElement>(null)
 
   function addFiles(files: FileList | File[]) {
-    const arr = Array.from(files).filter(f => f.type.startsWith('image/') && f.size <= 10 * 1024 * 1024)
-    const skipped = Array.from(files).length - arr.length
-    if (skipped) setError(`${skipped} file(s) skipped (not an image or over 10MB)`)
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
+    if (arr.length < Array.from(files).length) setError('Non-image files skipped')
     setPreviews(prev => {
       const newOnes = arr.filter(f => !prev.some(p => p.file.name === f.name && p.file.size === f.size))
       return [...prev, ...newOnes.map(f => ({ file: f, objectUrl: URL.createObjectURL(f) }))]
@@ -180,73 +154,27 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     setLoading(true); setError(''); setDone(0)
     const name = uploaderName.trim() || 'Anonymous'
     const errors: string[] = []
-    
-    // Upload in batches of 3 to prevent overwhelming the server
-    const BATCH_SIZE = 3
-    
-    for (let batchStart = 0; batchStart < previews.length; batchStart += BATCH_SIZE) {
-      const batch = previews.slice(batchStart, batchStart + BATCH_SIZE)
-      
-      for (let i = 0; i < batch.length; i++) {
-        const photoIndex = batchStart + i + 1
-        try {
-          // First attempt with normal compression
-          let imageData = await compressImage(batch[i].file)
-          let uploadSuccess = false
-          let retries = 2
-          
-          while (retries >= 0 && !uploadSuccess) {
-            try {
-              const res = await fetch('/api/gallery', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageData, uploaderName: name })
-              })
-              
-              if (res.ok) {
-                uploadSuccess = true
-                break
-              }
-              
-              const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
-              
-              // If file too large (413), try aggressive compression
-              if (res.status === 413 && retries > 0) {
-                console.log(`Photo ${photoIndex} too large, trying harder compression...`)
-                imageData = await compressImageAggressive(imageData)
-                retries--
-                continue
-              }
-              
-              // For other errors, try once more
-              if (retries > 0) {
-                console.log(`Photo ${photoIndex} failed with "${errorData.error}", retrying...`)
-                retries--
-                continue
-              }
-              
-              throw new Error(errorData.error || `Server error (${res.status})`)
-            } catch (fetchError) {
-              if (retries <= 0 || uploadSuccess) throw fetchError
-              retries--
-            }
-          }
-          
-          if (!uploadSuccess) {
-            errors.push(`Photo ${photoIndex} failed after retries`)
-          }
-        } catch (err) {
-          const errorMsg = err instanceof Error ? err.message : 'Connection error'
-          errors.push(`Photo ${photoIndex}: ${errorMsg}`)
-          console.error(`Photo ${photoIndex} upload error:`, err)
+
+    for (let i = 0; i < previews.length; i++) {
+      try {
+        const { full, thumbnail } = await compressImage(previews[i].file)
+        const res = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            imageData: full, 
+            thumbnail, 
+            uploaderName: name 
+          })
+        })
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}))
+          throw new Error(d.error || `Upload failed (${res.status})`)
         }
-        setDone(photoIndex)
+      } catch (err: any) {
+        errors.push(`Photo ${i + 1}: ${err.message}`)
       }
-      
-      // Small delay between batches to let server breathe
-      if (batchStart + BATCH_SIZE < previews.length) {
-        await new Promise(r => setTimeout(r, 500))
-      }
+      setDone(i + 1)
     }
 
     setLoading(false)
@@ -262,28 +190,25 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-      <div className="w-full max-w-2xl bg-slate-800 border border-slate-700/60 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50 flex-shrink-0">
+      <div className="w-full max-w-2xl bg-slate-800 border border-slate-700/60 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50">
           <div className="flex items-center gap-2">
             <Camera size={16} className="text-green-400" />
             <h2 className="font-bold text-white">Add to GOC Memories</h2>
             {previews.length > 0 && (
-              <span className="text-xs bg-green-600/20 text-green-400 border border-green-600/30 px-2 py-0.5 rounded-full font-semibold">
+              <span className="text-xs bg-green-600/20 text-green-400 border border-green-600/30 px-2 py-0.5 rounded-full">
                 {previews.length} selected
               </span>
             )}
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-700/60 transition-all">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-700/60">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
-          {/* Drop zone */}
           <div
-            className={`border-2 border-dashed rounded-2xl transition-all duration-200 cursor-pointer p-8 ${dragOver ? 'border-green-500 bg-green-500/10' : 'border-slate-600 hover:border-slate-500 bg-slate-900/50'}`}
+            className={`border-2 border-dashed rounded-2xl transition-all cursor-pointer p-8 ${dragOver ? 'border-green-500 bg-green-500/10' : 'border-slate-600 hover:border-slate-500 bg-slate-900/50'}`}
             onDragOver={e => { e.preventDefault(); setDragOver(true) }}
             onDragLeave={() => setDragOver(false)}
             onDrop={e => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files) }}
@@ -296,20 +221,18 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-300">Drop photos here or click to browse</p>
-                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · up to 10MB each · select as many as you want</p>
+                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · select up to 20 photos</p>
               </div>
-              {previews.length > 0 && <p className="text-xs text-green-400 font-semibold">Click to add more</p>}
             </div>
           </div>
 
-          {/* Preview grid */}
           {previews.length > 0 && (
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
               {previews.map((item, idx) => (
                 <div key={idx} className="relative aspect-square rounded-xl overflow-hidden bg-slate-700/40 group">
                   <img src={item.objectUrl} alt="" className="w-full h-full object-cover" />
                   <button onClick={() => removePreview(idx)}
-                    className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-red-600/90 text-white opacity-0 group-hover:opacity-100 transition-all">
+                    className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full bg-red-600/90 text-white opacity-0 group-hover:opacity-100">
                     <X size={11} />
                   </button>
                 </div>
@@ -317,21 +240,19 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             </div>
           )}
 
-          {/* Uploader name */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Your Name (optional)</label>
-            <input className="bg-slate-900/80 border border-slate-600/60 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-3 w-full focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 transition-all text-sm"
+            <input className="bg-slate-900/80 border border-slate-600/60 text-slate-100 placeholder-slate-500 rounded-xl px-4 py-3 w-full focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20 text-sm"
               placeholder="e.g. Rahul Kumar"
               value={uploaderName}
               onChange={e => setUploaderName(e.target.value)}
             />
           </div>
 
-          {/* Progress */}
           {loading && (
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs text-slate-400">
-                <span>Uploading {done}/{previews.length}…</span>
+                <span>Uploading {done}/{previews.length}...</span>
                 <span className="text-green-400 font-semibold">{progress}%</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2.5 overflow-hidden">
@@ -343,11 +264,10 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
           {error && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
         </div>
 
-        {/* Footer */}
-        <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-700/40 flex-shrink-0">
-          <button onClick={onClose} className="flex-1 py-2.5 border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/60 rounded-xl text-sm font-medium transition-all">Cancel</button>
+        <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-slate-700/40">
+          <button onClick={onClose} className="flex-1 py-2.5 border border-slate-600/50 text-slate-300 hover:text-white hover:bg-slate-700/60 rounded-xl text-sm font-medium">Cancel</button>
           <button onClick={handleUpload} disabled={!previews.length || loading}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-all shadow-lg shadow-green-900/30">
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold">
             {loading
               ? <><Loader2 size={15} className="animate-spin" /> {progress}%</>
               : <><Upload size={15} /> Upload {previews.length > 0 ? `${previews.length} ` : ''}Photo{previews.length !== 1 ? 's' : ''}</>}
@@ -358,7 +278,6 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   )
 }
 
-// ── Public header ─────────────────────────────────────────────────────────────
 function PublicGalleryHeader() {
   return (
     <header className="bg-slate-900/95 border-b border-slate-700/50 backdrop-blur-xl sticky top-0 z-20">
@@ -380,7 +299,6 @@ function PublicGalleryHeader() {
   )
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
 export default function GalleryClient() {
   const [photos, setPhotos]           = useState<Photo[]>([])
   const [loading, setLoading]         = useState(true)
@@ -418,7 +336,6 @@ export default function GalleryClient() {
       .catch(() => {})
   }, [fetchPhotos])
 
-  // IntersectionObserver — auto-load next page when sentinel enters viewport
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
@@ -435,7 +352,7 @@ export default function GalleryClient() {
           })
         }
       },
-      { rootMargin: '300px' } // trigger 300px before bottom
+      { rootMargin: '300px' }
     )
     observer.observe(sentinel)
     return () => observer.disconnect()
@@ -443,15 +360,10 @@ export default function GalleryClient() {
 
   const Content = (
     <div className="min-h-screen">
-      {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-950" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_50%,rgba(250,204,21,0.08),transparent_70%)]" />
         <div className="absolute inset-0 pitch-bg opacity-20" />
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="absolute w-1 h-1 bg-yellow-400/30 rounded-full animate-pulse-slow"
-            style={{ top: `${20 + i * 12}%`, left: `${10 + i * 15}%`, animationDelay: `${i * 0.5}s` }} />
-        ))}
         <div className="relative z-10 px-4 md:px-8 py-12 md:py-16 max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
@@ -479,7 +391,6 @@ export default function GalleryClient() {
         </div>
       </div>
 
-      {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {loading && photos.length === 0 ? (
           <div className="gallery-grid">
@@ -508,7 +419,6 @@ export default function GalleryClient() {
                   className="relative group aspect-square overflow-hidden rounded-xl bg-slate-800/60 border border-slate-700/30 hover:border-slate-500/50 transition-all duration-200 cursor-pointer"
                   onClick={() => setLightboxIdx(idx)}
                 >
-                  {/* Use Cloudinary thumbnail URL — served from CDN, tiny & fast */}
                   <img
                     src={photo.thumbnailUrl || photo.url}
                     alt={photo.uploaderName || 'GOC memory'}
@@ -527,16 +437,12 @@ export default function GalleryClient() {
                           {new Date(photo.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 text-white/60 text-[10px]">
-                        <ChevronLeft size={12} /><ChevronRight size={12} />
-                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Invisible sentinel — IntersectionObserver triggers next page load */}
             <div ref={sentinelRef} className="h-1" />
             {loadingMore && (
               <div className="flex justify-center mt-6 mb-2">
