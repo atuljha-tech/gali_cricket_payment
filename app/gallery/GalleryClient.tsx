@@ -16,8 +16,8 @@ interface Photo {
   uploaderName?: string
 }
 
-// Compress image - creates a smaller full-size image plus a thumbnail for mobile-friendly uploads
-function compressImage(file: File, maxDimension = 400, quality = 0.5): Promise<{ full: string; thumbnail: string }> {
+// Compress image - creates a higher-quality full-size image plus a thumbnail while preserving aspect ratio
+function compressImage(file: File, maxDimension = 1200, quality = 0.85): Promise<{ full: string; thumbnail: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -37,9 +37,10 @@ function compressImage(file: File, maxDimension = 400, quality = 0.5): Promise<{
       }
 
       fullCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
-      const full = fullCanvas.toDataURL('image/jpeg', quality)
+      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
+      const full = fullCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : quality)
 
-      const thumbMax = Math.max(160, Math.round(maxDimension * 0.45))
+      const thumbMax = Math.max(240, Math.round(maxDimension * 0.4))
       const thumbCanvas = document.createElement('canvas')
       const thumbRatio = Math.min(thumbMax / img.width, thumbMax / img.height, 1)
       thumbCanvas.width = Math.round(img.width * thumbRatio)
@@ -52,7 +53,7 @@ function compressImage(file: File, maxDimension = 400, quality = 0.5): Promise<{
       }
 
       thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
-      const thumbnail = thumbCanvas.toDataURL('image/jpeg', Math.max(0.35, quality - 0.1))
+      const thumbnail = thumbCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : Math.max(0.7, quality - 0.1))
 
       resolve({ full, thumbnail })
     }
@@ -153,6 +154,12 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
     if (arr.length < Array.from(files).length) setError('Non-image files skipped')
+
+    const largeFiles = arr.filter(f => f.size > 2_500_000)
+    if (largeFiles.length > 0) {
+      setError((prev) => prev ? prev : 'Large photos may take longer to upload. Please keep the file size moderate for the best experience.')
+    }
+
     setPreviews(prev => {
       const newOnes = arr.filter(f => !prev.some(p => p.file.name === f.name && p.file.size === f.size))
       return [...prev, ...newOnes.map(f => ({ file: f, objectUrl: URL.createObjectURL(f) }))]
@@ -179,9 +186,9 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       try {
         let lastError = ''
         const attempts = [
-          { maxDimension: 400, quality: 0.5 },
-          { maxDimension: 320, quality: 0.42 },
-          { maxDimension: 240, quality: 0.35 },
+          { maxDimension: 1200, quality: 0.9 },
+          { maxDimension: 960, quality: 0.88 },
+          { maxDimension: 720, quality: 0.85 },
         ]
 
         for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
