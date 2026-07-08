@@ -9,10 +9,10 @@ export interface IGalleryPhoto extends Document {
 
 const GalleryPhotoSchema = new Schema<IGalleryPhoto>(
   {
-    imageData:    { type: String, required: true },
-    thumbnail:    { type: String, required: true },
-    uploadedAt:   { type: Date, default: Date.now },
-    uploaderName: { type: String, default: 'Anonymous' },
+    imageData: { type: String, required: true },
+    thumbnail: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+    uploaderName: { type: String, default: 'Anonymous', trim: true, maxlength: 80 },
   },
   { timestamps: true }
 )

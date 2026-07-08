@@ -1,5 +1,10 @@
 {
   "buildCommand": "next build",
   "outputDirectory": ".next",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "app/api/gallery/route.ts": {
+      "maxDuration": 30
+    }
+  }
 }

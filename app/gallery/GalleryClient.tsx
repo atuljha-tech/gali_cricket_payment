@@ -16,35 +16,52 @@ interface Photo {
   uploaderName?: string
 }
 
-// Compress image - creates full size + thumbnail
-function compressImage(file: File): Promise<{ full: string; thumbnail: string }> {
+// Compress image - creates a smaller full-size image plus a thumbnail for mobile-friendly uploads
+function compressImage(file: File, maxDimension = 400, quality = 0.5): Promise<{ full: string; thumbnail: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
+
     img.onload = () => {
       URL.revokeObjectURL(url)
-      
-      // Full image - 800px max
+
       const fullCanvas = document.createElement('canvas')
-      const maxFull = 800
-      const fullRatio = Math.min(maxFull / img.width, maxFull / img.height, 1)
+      const fullRatio = Math.min(maxDimension / img.width, maxDimension / img.height, 1)
       fullCanvas.width = Math.round(img.width * fullRatio)
       fullCanvas.height = Math.round(img.height * fullRatio)
-      fullCanvas.getContext('2d')!.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
-      const full = fullCanvas.toDataURL('image/jpeg', 0.65)
-      
-      // Thumbnail - 300px max for fast loading
+
+      const fullCtx = fullCanvas.getContext('2d')
+      if (!fullCtx) {
+        reject(new Error('Unable to process image'))
+        return
+      }
+
+      fullCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
+      const full = fullCanvas.toDataURL('image/jpeg', quality)
+
+      const thumbMax = Math.max(160, Math.round(maxDimension * 0.45))
       const thumbCanvas = document.createElement('canvas')
-      const maxThumb = 300
-      const thumbRatio = Math.min(maxThumb / img.width, maxThumb / img.height, 1)
+      const thumbRatio = Math.min(thumbMax / img.width, thumbMax / img.height, 1)
       thumbCanvas.width = Math.round(img.width * thumbRatio)
       thumbCanvas.height = Math.round(img.height * thumbRatio)
-      thumbCanvas.getContext('2d')!.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
-      const thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.50)
-      
+
+      const thumbCtx = thumbCanvas.getContext('2d')
+      if (!thumbCtx) {
+        reject(new Error('Unable to process thumbnail'))
+        return
+      }
+
+      thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
+      const thumbnail = thumbCanvas.toDataURL('image/jpeg', Math.max(0.35, quality - 0.1))
+
       resolve({ full, thumbnail })
     }
-    img.onerror = reject
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Image could not be read'))
+    }
+
     img.src = url
   })
 }
@@ -151,35 +168,66 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   async function handleUpload() {
     if (!previews.length) return
-    setLoading(true); setError(''); setDone(0)
+    setLoading(true)
+    setError('')
+    setDone(0)
+
     const name = uploaderName.trim() || 'Anonymous'
     const errors: string[] = []
 
     for (let i = 0; i < previews.length; i++) {
       try {
-        const { full, thumbnail } = await compressImage(previews[i].file)
-        const res = await fetch('/api/gallery', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            imageData: full, 
-            thumbnail, 
-            uploaderName: name 
-          })
-        })
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}))
-          throw new Error(d.error || `Upload failed (${res.status})`)
+        let lastError = ''
+        const attempts = [
+          { maxDimension: 400, quality: 0.5 },
+          { maxDimension: 320, quality: 0.42 },
+          { maxDimension: 240, quality: 0.35 },
+        ]
+
+        for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
+          const { maxDimension, quality } = attempts[attemptIndex]
+          try {
+            console.log('[gallery] uploading photo', { index: i + 1, attempt: attemptIndex + 1, maxDimension, quality })
+            const { full, thumbnail } = await compressImage(previews[i].file, maxDimension, quality)
+            console.log('[gallery] compressed payload', { index: i + 1, fullSize: full.length, thumbnailSize: thumbnail.length })
+
+            const res = await fetch('/api/gallery', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ imageData: full, thumbnail, uploaderName: name }),
+            })
+
+            const text = await res.text()
+            let data: any = {}
+            try {
+              data = text ? JSON.parse(text) : {}
+            } catch {
+              data = {}
+            }
+
+            if (!res.ok) {
+              throw new Error(data.error || `Upload failed (${res.status})`)
+            }
+
+            break
+          } catch (err: any) {
+            lastError = err.message || 'Unknown upload error'
+            console.error('[gallery] upload attempt failed', { index: i + 1, attempt: attemptIndex + 1, error: lastError })
+            if (attemptIndex === attempts.length - 1) {
+              throw new Error(lastError)
+            }
+          }
         }
       } catch (err: any) {
         errors.push(`Photo ${i + 1}: ${err.message}`)
       }
+
       setDone(i + 1)
     }
 
     setLoading(false)
     if (errors.length > 0) {
-      setError(errors.join('. '))
+      setError(`Some photos could not be uploaded. ${errors.join(' ')}`)
     } else {
       onSuccess()
       onClose()

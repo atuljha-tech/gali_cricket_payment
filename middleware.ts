@@ -56,6 +56,11 @@ async function isValidToken(token: string | undefined): Promise<boolean> {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
+    return NextResponse.next()
+  }
+
   const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r))
 
   if (isProtected) {
