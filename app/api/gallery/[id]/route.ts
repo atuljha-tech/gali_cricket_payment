@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import GalleryPhoto from '@/models/GalleryPhoto'
+import { verifyRequestToken } from '@/lib/auth'
 
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Check if admin
+  const admin = verifyRequestToken(req)
+  if (!admin) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     await dbConnect()
     const { id } = params

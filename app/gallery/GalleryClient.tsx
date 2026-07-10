@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Upload, X, Image as ImageIcon, Loader2,
   Camera, Star, Trophy, ArrowLeft,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react'
 
 interface Photo {
@@ -78,27 +78,40 @@ function compressImage(file: File, maxDimension = 2500, quality = 1.0): Promise<
 
 // Lightbox
 function Lightbox({
-  photos, index, onClose, onNav,
+  photos, index, onClose, onNav, isAdmin, onDelete,
 }: {
   photos: Photo[]
   index: number
   onClose: () => void
   onNav: (newIndex: number) => void
+  isAdmin: boolean
+  onDelete: (id: string) => void
 }) {
   const photo = photos[index]
   const hasPrev = index > 0
   const hasNext = index < photos.length - 1
+  const [deleting, setDeleting] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    setIsVisible(true)
+  }, [])
+
+  const handleClose = () => {
+    setIsVisible(false)
+    setTimeout(onClose, 200) // Wait for fade-out animation
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape')     onClose()
+      if (e.key === 'Escape')     handleClose()
       if (e.key === 'ArrowLeft'  && hasPrev) onNav(index - 1)
       if (e.key === 'ArrowRight' && hasNext) onNav(index + 1)
     }
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = '' }
-  }, [index, hasPrev, hasNext, onClose, onNav])
+  }, [index, hasPrev, hasNext, handleClose, onNav])
 
   const touchStartX = useRef<number>(0)
   function onTouchStart(e: React.TouchEvent) { touchStartX.current = e.touches[0].clientX }
@@ -108,44 +121,67 @@ function Lightbox({
     if (diff < -50 && hasPrev) onNav(index - 1)
   }
 
+  const handleDelete = async () => {
+    if (deleting) return
+    if (!confirm('Are you sure you want to delete this photo? This cannot be undone!')) return
+    setDeleting(true)
+    await onDelete(photo._id)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/96 flex items-center justify-center"
-      onClick={onClose}
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.96)' }}
+      onClick={handleClose}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <button onClick={onClose}
-        className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white">
-        <X size={18} />
+      <button onClick={handleClose}
+        className="absolute top-6 right-6 z-20 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-all">
+        <X size={24} />
       </button>
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 text-xs text-white/60 bg-black/40 px-3 py-1 rounded-full">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 text-sm text-white/80 bg-black/50 px-4 py-2 rounded-full">
         {index + 1} / {photos.length}
       </div>
       {hasPrev && (
         <button onClick={(e) => { e.stopPropagation(); onNav(index - 1) }}
-          className="absolute left-3 md:left-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white">
-          <ChevronLeft size={22} />
+          className="absolute left-4 md:left-8 z-20 w-14 h-14 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-all">
+          <ChevronLeft size={32} />
         </button>
       )}
-      <img
-        src={photo.url}
-        alt={photo.uploaderName || 'GOC memory'}
-        className="max-w-[90vw] max-h-[85vh] object-contain rounded-xl shadow-2xl select-none"
-        onClick={(e) => e.stopPropagation()}
-        draggable={false}
-      />
+      <div
+        className={`transition-transform duration-200 ${isVisible ? 'scale-100' : 'scale-95'}`}
+      >
+        <img
+          src={photo.url}
+          alt={photo.uploaderName || 'GOC memory'}
+          className="max-w-[92vw] max-h-[82vh] object-contain rounded-xl shadow-2xl select-none"
+          onClick={(e) => e.stopPropagation()}
+          draggable={false}
+        />
+      </div>
       {hasNext && (
         <button onClick={(e) => { e.stopPropagation(); onNav(index + 1) }}
-          className="absolute right-3 md:right-6 z-10 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/25 text-white">
-          <ChevronRight size={22} />
+          className="absolute right-4 md:right-8 z-20 w-14 h-14 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-all">
+          <ChevronRight size={32} />
         </button>
       )}
-      {(photo.uploaderName && photo.uploaderName !== 'Anonymous') && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 text-xs text-white/60 bg-black/40 px-3 py-1 rounded-full">
-          📸 {photo.uploaderName} · {new Date(photo.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-        </div>
-      )}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex gap-4 flex-wrap justify-center">
+        {(photo.uploaderName && photo.uploaderName !== 'Anonymous') && (
+          <div className="text-sm text-white/80 bg-black/50 px-5 py-2.5 rounded-full">
+            📸 {photo.uploaderName} · {new Date(photo.uploadedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+        )}
+        {isAdmin && (
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete() }}
+            disabled={deleting}
+            className="text-sm text-white bg-red-600 hover:bg-red-500 px-6 py-2.5 rounded-full flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
+            {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            Delete Photo
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -363,6 +399,7 @@ export default function GalleryClient() {
   const [pages, setPages]             = useState(1)
   const [total, setTotal]             = useState(0)
   const sentinelRef                   = useRef<HTMLDivElement>(null)
+  const [deletingId, setDeletingId]   = useState<string | null>(null)
 
   const fetchPhotos = useCallback(async (p = 1) => {
     if (p === 1) setLoading(true)
@@ -384,6 +421,41 @@ export default function GalleryClient() {
       else setLoadingMore(false)
     }
   }, [])
+
+  const deletePhoto = async (id: string) => {
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/gallery/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Delete failed')
+      }
+
+      setPhotos(prev => {
+        const idx = prev.findIndex(p => p._id === id)
+        if (lightboxIdx !== null && idx !== -1) {
+          if (lightboxIdx >= idx) {
+            setLightboxIdx(lightboxIdx - 1)
+          }
+        }
+        return prev.filter(p => p._id !== id)
+      })
+
+      if (photos.length === 1) {
+        setLightboxIdx(null)
+      }
+
+      console.log('Photo deleted successfully')
+    } catch (err: any) {
+      console.error(err.message || 'Failed to delete photo')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   useEffect(() => {
     fetchPhotos(1)
@@ -484,7 +556,16 @@ export default function GalleryClient() {
                     decoding="async"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
-                    <div />
+                    <div className="flex justify-end">
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deletePhoto(photo._id) }}
+                          disabled={deletingId === photo._id}
+                          className="w-7 h-7 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-500 text-white shadow-lg transition-all">
+                          {deletingId === photo._id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-end justify-between">
                       <div>
                         {photo.uploaderName && photo.uploaderName !== 'Anonymous' && (
@@ -528,6 +609,8 @@ export default function GalleryClient() {
           index={lightboxIdx}
           onClose={() => setLightboxIdx(null)}
           onNav={setLightboxIdx}
+          isAdmin={isAdmin}
+          onDelete={deletePhoto}
         />
       )}
     </>
