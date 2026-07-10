@@ -184,49 +184,39 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
     for (let i = 0; i < previews.length; i++) {
       try {
-        let lastError = ''
-        const attempts = [
-          { maxDimension: 1200, quality: 0.9 },
-          { maxDimension: 960, quality: 0.88 },
-          { maxDimension: 720, quality: 0.85 },
-        ]
+        console.log('[gallery] uploading photo', { index: i + 1, total: previews.length })
+        
+        // Generate high-quality data URL for storage
+        const { full, thumbnail } = await compressImage(previews[i].file, 1600, 0.92)
+        console.log('[gallery] compressed payload', { index: i + 1, fullSize: full.length, thumbnailSize: thumbnail.length })
 
-        for (let attemptIndex = 0; attemptIndex < attempts.length; attemptIndex += 1) {
-          const { maxDimension, quality } = attempts[attemptIndex]
-          try {
-            console.log('[gallery] uploading photo', { index: i + 1, attempt: attemptIndex + 1, maxDimension, quality })
-            const { full, thumbnail } = await compressImage(previews[i].file, maxDimension, quality)
-            console.log('[gallery] compressed payload', { index: i + 1, fullSize: full.length, thumbnailSize: thumbnail.length })
+        const res = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            imageUrl: full,        // Send as URL (data URL)
+            thumbnailUrl: thumbnail,
+            uploaderName: name 
+          }),
+        })
 
-            const res = await fetch('/api/gallery', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ imageData: full, thumbnail, uploaderName: name }),
-            })
-
-            const text = await res.text()
-            let data: any = {}
-            try {
-              data = text ? JSON.parse(text) : {}
-            } catch {
-              data = {}
-            }
-
-            if (!res.ok) {
-              throw new Error(data.error || `Upload failed (${res.status})`)
-            }
-
-            break
-          } catch (err: any) {
-            lastError = err.message || 'Unknown upload error'
-            console.error('[gallery] upload attempt failed', { index: i + 1, attempt: attemptIndex + 1, error: lastError })
-            if (attemptIndex === attempts.length - 1) {
-              throw new Error(lastError)
-            }
-          }
+        const text = await res.text()
+        let data: any = {}
+        try {
+          data = text ? JSON.parse(text) : {}
+        } catch {
+          data = {}
         }
+
+        if (!res.ok) {
+          throw new Error(data.error || `Upload failed (${res.status})`)
+        }
+
+        console.log('[gallery] upload successful', { index: i + 1 })
       } catch (err: any) {
-        errors.push(`Photo ${i + 1}: ${err.message}`)
+        const errMsg = err.message || 'Unknown upload error'
+        errors.push(`Photo ${i + 1}: ${errMsg}`)
+        console.error('[gallery] upload failed', { index: i + 1, error: errMsg })
       }
 
       setDone(i + 1)

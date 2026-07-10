@@ -50,9 +50,19 @@ export async function POST(req: NextRequest) {
 
   try {
     await dbConnect()
-    const { playerId, month, year } = await req.json()
+    const body = await req.json().catch((err) => {
+      console.error('[payment] Failed to parse JSON:', err)
+      return null
+    })
 
-    if (!playerId || !month || !year) {
+    if (!body) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const { playerId, month, year } = body
+
+    if (!playerId || month === undefined || year === undefined) {
+      console.error('[payment] Missing required fields:', { playerId, month, year })
       return NextResponse.json({ error: 'playerId, month, year required' }, { status: 400 })
     }
 
@@ -60,7 +70,11 @@ export async function POST(req: NextRequest) {
       Player.findById(playerId),
       Settings.findOne().lean<{monthlyFee: number; dailyFine: number; dueDate: number} | null>(),
     ])
-    if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+    
+    if (!player) {
+      console.error('[payment] Player not found:', playerId)
+      return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+    }
 
     const fee = settings?.monthlyFee ?? 20
     const dailyFine = settings?.dailyFine ?? 2
@@ -73,6 +87,8 @@ export async function POST(req: NextRequest) {
     // Generate receipt number
     const count = await Payment.countDocuments({ receiptNo: { $exists: true, $ne: null } })
     const receiptNo = generateReceiptNo(year, count + 1)
+
+    console.log('[payment] Marking payment - admin:', admin.id, 'player:', playerId, 'month:', month, 'year:', year)
 
     // Upsert payment
     const payment = await Payment.findOneAndUpdate(
@@ -89,12 +105,19 @@ export async function POST(req: NextRequest) {
         adminId: admin.id,
         paidAt: now,
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true }
     )
 
+    if (!payment) {
+      console.error('[payment] Failed to create/update payment')
+      return NextResponse.json({ error: 'Failed to save payment' }, { status: 500 })
+    }
+
+    console.log('[payment] Payment marked successfully:', payment._id)
     return NextResponse.json({ payment, receiptNo })
   } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.error('[payment] Error:', err instanceof Error ? err.message : err)
+    const errorMsg = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: 'Server error', details: errorMsg }, { status: 500 })
   }
 }

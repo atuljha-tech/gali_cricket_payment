@@ -5,7 +5,7 @@ import AdminLayout from '@/components/AdminLayout'
 import Modal from '@/components/Modal'
 import {
   Search, Plus, CheckCircle2, Clock, AlertCircle,
-  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users, Trash2
+  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users, Trash2, X
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -35,6 +35,7 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending' | 'late'>('all')
+  const [actionError, setActionError] = useState<string>('')
 
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ name: '', phone: '', email: '', joiningDate: '' })
@@ -91,13 +92,24 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
 
   async function markPaid(player: PlayerRow) {
     setActionId(player._id)
+    setActionError('')
     try {
       const res = await fetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerId: player._id, month, year }),
       })
-      if (res.ok) fetchPlayers()
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        await fetchPlayers()
+      } else {
+        setActionError(data.error || `Failed to mark payment (${res.status})`)
+        console.error('[payment] Failed:', data)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error'
+      setActionError(`Error: ${msg}`)
+      console.error('[payment] Error:', err)
     } finally {
       setActionId(null)
     }
@@ -106,9 +118,20 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
   async function undoPayment(player: PlayerRow) {
     if (!player.payment._id) return
     setActionId(player._id)
+    setActionError('')
     try {
       const res = await fetch(`/api/payments/${player.payment._id}`, { method: 'DELETE' })
-      if (res.ok) await fetchPlayers()
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        await fetchPlayers()
+      } else {
+        setActionError(data.error || `Failed to undo payment (${res.status})`)
+        console.error('[payment] Undo failed:', data)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Network error'
+      setActionError(`Error: ${msg}`)
+      console.error('[payment] Undo error:', err)
     } finally {
       setActionId(null)
     }
@@ -180,6 +203,19 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
             <span className="sm:hidden">Add</span>
           </button>
         </div>
+
+        {/* Action Error Alert */}
+        {actionError && (
+          <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+            <AlertCircle size={16} className="text-red-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm text-red-300">{actionError}</p>
+            </div>
+            <button onClick={() => setActionError('')} className="text-red-400 hover:text-red-300">
+              <X size={16} />
+            </button>
+          </div>
+        )}
 
         {/* Search + Filters */}
         <div className="card p-4 space-y-3">

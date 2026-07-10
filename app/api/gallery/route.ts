@@ -5,9 +5,6 @@ import GalleryPhoto from '@/models/GalleryPhoto'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const MAX_IMAGE_SIZE = 2_500_000
-const MAX_THUMB_SIZE = 700_000
-
 function withCors(res: NextResponse) {
   res.headers.set('Access-Control-Allow-Origin', '*')
   res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -32,15 +29,15 @@ export async function GET(req: NextRequest) {
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .select('imageData thumbnail uploadedAt uploaderName')
+        .select('imageUrl thumbnailUrl uploadedAt uploaderName')
         .lean(),
       GalleryPhoto.countDocuments(),
     ])
 
     const photos = rawPhotos.map((p: any) => ({
       _id: p._id,
-      url: p.imageData || '',
-      thumbnailUrl: p.thumbnail || p.imageData || '',
+      url: p.imageUrl || '',
+      thumbnailUrl: p.thumbnailUrl || p.imageUrl || '',
       uploadedAt: p.uploadedAt,
       uploaderName: p.uploaderName || 'Anonymous',
     }))
@@ -69,39 +66,43 @@ export async function POST(req: NextRequest) {
   try {
     await dbConnect()
 
-    const contentLength = req.headers.get('content-length')
-    console.log('[gallery] upload content-length:', contentLength)
-
     const body = await req.json().catch((err) => {
       console.error('[gallery] invalid json body:', err)
       return null
     })
 
-    if (!body?.imageData) {
-      console.error('[gallery] missing imageData in request body')
-      return jsonResponse({ error: 'Image data required' }, 400)
+    if (!body) {
+      console.error('[gallery] missing body in request')
+      return jsonResponse({ error: 'Invalid request body' }, 400)
     }
 
-    const { imageData, thumbnail, uploaderName } = body
+    const { imageUrl, thumbnailUrl, uploaderName } = body
     const normalizedName = typeof uploaderName === 'string' ? uploaderName.trim() : ''
 
-    if (typeof imageData !== 'string' || !imageData.startsWith('data:image/')) {
-      console.error('[gallery] invalid image format received')
-      return jsonResponse({ error: 'Invalid image format' }, 400)
+    // Accept both data URLs and regular URLs
+    if (typeof imageUrl !== 'string' || !imageUrl) {
+      console.error('[gallery] missing or invalid imageUrl')
+      return jsonResponse({ error: 'Image URL required' }, 400)
     }
 
-    const imageSize = imageData.length
-    const thumbnailSize = typeof thumbnail === 'string' ? thumbnail.length : 0
-    console.log('[gallery] upload payload sizes:', { imageSize, thumbnailSize, uploaderName: normalizedName || 'Anonymous' })
-
-    if (imageSize > MAX_IMAGE_SIZE || thumbnailSize > MAX_THUMB_SIZE) {
-      console.error('[gallery] payload too large for upload:', { imageSize, thumbnailSize })
-      return jsonResponse({ error: 'Image is too large for upload. Please choose a smaller photo.' }, 413)
+    // Validate URL format (data URL or https/http)
+    const isDataUrl = imageUrl.startsWith('data:')
+    const isHttpUrl = imageUrl.startsWith('http://') || imageUrl.startsWith('https://')
+    
+    if (!isDataUrl && !isHttpUrl) {
+      console.error('[gallery] invalid image URL format:', { isDataUrl, isHttpUrl })
+      return jsonResponse({ error: 'Invalid image URL format' }, 400)
     }
+
+    console.log('[gallery] upload payload:', { 
+      imageUrlLength: imageUrl.length,
+      thumbnailUrlLength: thumbnailUrl?.length || 0,
+      uploaderName: normalizedName || 'Anonymous'
+    })
 
     const photo = await GalleryPhoto.create({
-      imageData,
-      thumbnail: thumbnail || imageData,
+      imageUrl,
+      thumbnailUrl: thumbnailUrl || imageUrl,
       uploaderName: normalizedName || 'Anonymous',
       uploadedAt: new Date(),
     })
@@ -111,9 +112,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[gallery] upload failed:', err)
     const message = err instanceof Error ? err.message : 'Upload failed'
-    const friendlyMessage = message.includes('16MB') || message.includes('Document')
-      ? 'Image is too large for storage. Please try a smaller photo.'
-      : 'Upload failed'
-    return jsonResponse({ error: friendlyMessage, details: message }, 500)
+    return jsonResponse({ error: 'Upload failed', details: message }, 500)
   }
 }
