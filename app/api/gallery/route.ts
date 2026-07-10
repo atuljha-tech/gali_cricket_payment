@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .select('imageUrl thumbnailUrl uploadedAt uploaderName')
+        .select('image imageUrl url thumbnail thumbnailUrl uploadedAt uploaderName')
         .lean(),
       GalleryPhoto.countDocuments(),
     ])
@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
 
     const photos = rawPhotos.map((p: any) => ({
       _id: p._id,
-      url: p.url || p.imageUrl || '',
-      thumbnailUrl: p.thumbnailUrl || p.url || p.imageUrl || '',
+      url: p.image || p.imageUrl || p.url || '',
+      thumbnailUrl: p.thumbnail || p.thumbnailUrl || p.image || p.imageUrl || p.url || '',
       uploadedAt: p.uploadedAt,
       uploaderName: p.uploaderName || 'Anonymous',
     }))
@@ -82,19 +82,10 @@ export async function POST(req: NextRequest) {
     const { imageUrl, thumbnailUrl, uploaderName } = body
     const normalizedName = typeof uploaderName === 'string' ? uploaderName.trim() : ''
 
-    // Accept both data URLs and regular URLs
+    // Accept both data urls and regular urls
     if (typeof imageUrl !== 'string' || !imageUrl) {
       console.error('[gallery] missing or invalid imageUrl')
       return jsonResponse({ error: 'Image URL required' }, 400)
-    }
-
-    // Validate URL format (data URL or https/http)
-    const isDataUrl = imageUrl.startsWith('data:')
-    const isHttpUrl = imageUrl.startsWith('http://') || imageUrl.startsWith('https://')
-    
-    if (!isDataUrl && !isHttpUrl) {
-      console.error('[gallery] invalid image URL format:', { isDataUrl, isHttpUrl })
-      return jsonResponse({ error: 'Invalid image URL format' }, 400)
     }
 
     console.log('[gallery] upload payload:', { 
@@ -104,8 +95,10 @@ export async function POST(req: NextRequest) {
     })
 
     const photo = await GalleryPhoto.create({
-      imageUrl,
-      url: imageUrl, // Set both fields for backwards compatibility
+      image: imageUrl,
+      imageUrl: imageUrl,
+      url: imageUrl,
+      thumbnail: thumbnailUrl || imageUrl,
       thumbnailUrl: thumbnailUrl || imageUrl,
       uploaderName: normalizedName || 'Anonymous',
       uploadedAt: new Date(),

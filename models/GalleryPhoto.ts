@@ -1,17 +1,21 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IGalleryPhoto extends Document {
-  imageUrl?: string       // URL to the image (new field name)
-  url?: string            // URL to the image (old field name for compatibility)
-  thumbnailUrl?: string  // Optional thumbnail URL
+  image?: string
+  imageUrl?: string
+  url?: string
+  thumbnail?: string
+  thumbnailUrl?: string
   uploadedAt: Date
   uploaderName: string
 }
 
 const GalleryPhotoSchema = new Schema<IGalleryPhoto>(
   {
+    image: { type: String },
     imageUrl: { type: String },
     url: { type: String },
+    thumbnail: { type: String },
     thumbnailUrl: { type: String },
     uploadedAt: { type: Date, default: Date.now },
     uploaderName: { type: String, default: 'Anonymous', trim: true, maxlength: 80 },
@@ -19,15 +23,27 @@ const GalleryPhotoSchema = new Schema<IGalleryPhoto>(
   { timestamps: true }
 )
 
-// Pre-save hook to ensure both imageUrl and url are in sync (for backwards compatibility)
+// Pre-save hook to ensure all image and thumbnail fields are in sync
 GalleryPhotoSchema.pre('save', function (next) {
-  if (this.isModified('imageUrl') && this.imageUrl) {
-    this.url = this.imageUrl;
-  } else if (this.isModified('url') && this.url) {
-    this.imageUrl = this.url;
+  const primaryImage = this.image || this.imageUrl || this.url
+  const primaryThumbnail = this.thumbnail || this.thumbnailUrl
+
+  if (primaryImage) {
+    this.image = primaryImage
+    this.imageUrl = primaryImage
+    this.url = primaryImage
   }
-  next();
-});
+
+  if (primaryThumbnail) {
+    this.thumbnail = primaryThumbnail
+    this.thumbnailUrl = primaryThumbnail
+  } else if (primaryImage) {
+    this.thumbnail = primaryImage
+    this.thumbnailUrl = primaryImage
+  }
+
+  next()
+})
 
 GalleryPhotoSchema.index({ uploadedAt: -1 })
 
