@@ -1,6 +1,6 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, Document, Types } from 'mongoose'
 
-interface IReceiptSequence extends Document {
+interface IReceiptSequence extends Document<string> {
   _id: string
   sequence: number
 }
