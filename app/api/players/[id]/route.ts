@@ -55,16 +55,34 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const body = await req.json()
     const { name, phone, email, joiningDate, active } = body
 
+    // Validate required field
+    if (!name) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      name: name.trim(),
+      phone: phone?.trim() || '',
+      email: email?.trim() || undefined,
+    }
+    if (joiningDate) {
+      updateData.joiningDate = new Date(joiningDate)
+    }
+    if (active !== undefined) {
+      updateData.active = active
+    }
+
     const player = await Player.findByIdAndUpdate(
       params.id,
-      { name, phone, email, joiningDate, active },
+      updateData,
       { new: true, runValidators: true }
     )
     if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
     return NextResponse.json({ player })
   } catch (err) {
-    console.error(err)
+    console.error('[players] PUT error:', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

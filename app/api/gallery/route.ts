@@ -18,11 +18,12 @@ function jsonResponse(payload: unknown, status = 200) {
 }
 
 export async function GET(req: NextRequest) {
+  console.log('[gallery] GET request received')
   try {
     await dbConnect()
     const { searchParams } = new URL(req.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-    const limit = 12
+    const limit = 24 // More photos per page for better UX
 
     const [rawPhotos, total] = await Promise.all([
       GalleryPhoto.find({})
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
         .lean(),
       GalleryPhoto.countDocuments(),
     ])
+
+    console.log('[gallery] found photos:', { count: rawPhotos.length, total })
 
     const photos = rawPhotos.map((p: any) => ({
       _id: p._id,
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
       page,
       pages: Math.ceil(total / limit),
     })
-    res.headers.set('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    res.headers.set('Cache-Control', 's-maxage=15, stale-while-revalidate=30')
     return res
   } catch (err) {
     console.error('[gallery] GET error:', err)

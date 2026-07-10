@@ -16,8 +16,8 @@ interface Photo {
   uploaderName?: string
 }
 
-// Compress image - creates a higher-quality full-size image plus a thumbnail while preserving aspect ratio
-function compressImage(file: File, maxDimension = 1200, quality = 0.85): Promise<{ full: string; thumbnail: string }> {
+// Compress image - creates MAXIMUM QUALITY full-size image plus a thumbnail while preserving aspect ratio
+function compressImage(file: File, maxDimension = 2500, quality = 1.0): Promise<{ full: string; thumbnail: string }> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -25,35 +25,44 @@ function compressImage(file: File, maxDimension = 1200, quality = 0.85): Promise
     img.onload = () => {
       URL.revokeObjectURL(url)
 
+      // Full-size image: high quality, preserve original as much as possible
       const fullCanvas = document.createElement('canvas')
       const fullRatio = Math.min(maxDimension / img.width, maxDimension / img.height, 1)
       fullCanvas.width = Math.round(img.width * fullRatio)
       fullCanvas.height = Math.round(img.height * fullRatio)
 
-      const fullCtx = fullCanvas.getContext('2d')
+      const fullCtx = fullCanvas.getContext('2d', { willReadFrequently: false })
       if (!fullCtx) {
         reject(new Error('Unable to process image'))
         return
       }
 
+      // Use high-quality image rendering
+      fullCtx.imageSmoothingEnabled = true
+      fullCtx.imageSmoothingQuality = 'high'
       fullCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
+
       const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
       const full = fullCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : quality)
 
-      const thumbMax = Math.max(240, Math.round(maxDimension * 0.4))
+      // Thumbnail
+      const thumbMax = 400
       const thumbCanvas = document.createElement('canvas')
       const thumbRatio = Math.min(thumbMax / img.width, thumbMax / img.height, 1)
       thumbCanvas.width = Math.round(img.width * thumbRatio)
       thumbCanvas.height = Math.round(img.height * thumbRatio)
 
-      const thumbCtx = thumbCanvas.getContext('2d')
+      const thumbCtx = thumbCanvas.getContext('2d', { willReadFrequently: false })
       if (!thumbCtx) {
         reject(new Error('Unable to process thumbnail'))
         return
       }
 
+      thumbCtx.imageSmoothingEnabled = true
+      thumbCtx.imageSmoothingQuality = 'high'
       thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
-      const thumbnail = thumbCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : Math.max(0.7, quality - 0.1))
+
+      const thumbnail = thumbCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : 0.9)
 
       resolve({ full, thumbnail })
     }
@@ -153,11 +162,8 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
-    if (arr.length < Array.from(files).length) setError('Non-image files skipped')
-
-    const largeFiles = arr.filter(f => f.size > 2_500_000)
-    if (largeFiles.length > 0) {
-      setError((prev) => prev ? prev : 'Large photos may take longer to upload. Please keep the file size moderate for the best experience.')
+    if (arr.length < Array.from(files).length) {
+      setError('Non-image files skipped')
     }
 
     setPreviews(prev => {
@@ -186,8 +192,8 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       try {
         console.log('[gallery] uploading photo', { index: i + 1, total: previews.length })
         
-        // Generate high-quality data URL for storage
-        const { full, thumbnail } = await compressImage(previews[i].file, 1600, 0.92)
+        // Generate MAXIMUM quality data URL for storage
+        const { full, thumbnail } = await compressImage(previews[i].file, 3000, 1.0)
         console.log('[gallery] compressed payload', { index: i + 1, fullSize: full.length, thumbnailSize: thumbnail.length })
 
         const res = await fetch('/api/gallery', {
@@ -266,7 +272,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-300">Drop photos here or click to browse</p>
-                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · select up to 20 photos</p>
+                <p className="text-xs text-slate-500 mt-1">JPG · PNG · WEBP · upload as many photos as you want!</p>
               </div>
             </div>
           </div>
@@ -364,9 +370,15 @@ export default function GalleryClient() {
     try {
       const res = await fetch(`/api/gallery?page=${p}`)
       const data = await res.json()
-      setPhotos(prev => p === 1 ? (data.photos || []) : [...prev, ...(data.photos || [])])
-      setTotal(data.total || 0)
-      setPages(data.pages || 1)
+      if (data.error) {
+        console.error('[gallery] fetch error:', data.error)
+      } else {
+        setPhotos(prev => p === 1 ? (data.photos || []) : [...prev, ...(data.photos || [])])
+        setTotal(data.total || 0)
+        setPages(data.pages || 1)
+      }
+    } catch (err) {
+      console.error('[gallery] fetch failed:', err)
     } finally {
       if (p === 1) setLoading(false)
       else setLoadingMore(false)
