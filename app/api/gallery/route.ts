@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
 
     const photos = rawPhotos.map((p: any) => ({
       _id: p._id,
-      url: p.imageUrl || '',
-      thumbnailUrl: p.thumbnailUrl || p.imageUrl || '',
+      url: p.url || p.imageUrl || '',
+      thumbnailUrl: p.thumbnailUrl || p.url || p.imageUrl || '',
       uploadedAt: p.uploadedAt,
       uploaderName: p.uploaderName || 'Anonymous',
     }))
@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
 
     const photo = await GalleryPhoto.create({
       imageUrl,
+      url: imageUrl, // Set both fields for backwards compatibility
       thumbnailUrl: thumbnailUrl || imageUrl,
       uploaderName: normalizedName || 'Anonymous',
       uploadedAt: new Date(),
