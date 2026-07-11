@@ -1,3 +1,5 @@
+import { isBeforeFeeStart } from './feeConfig'
+
 /**
  * Calculate fine for a payment
  * @param year  - payment year
@@ -13,6 +15,9 @@ export function calculateFine(
   dailyFine: number,
   paidAt?: Date
 ): number {
+  // Fee structure started July 2026 — earlier months never carry a fine.
+  if (isBeforeFeeStart(year, month)) return 0
+
   const checkDate = paidAt ? new Date(paidAt) : new Date()
 
   // Due date is the `dueDate`th day of the given month

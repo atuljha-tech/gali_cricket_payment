@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Routes that require admin authentication
-const PROTECTED_ROUTES = ['/dashboard', '/players', '/history', '/settings']
+const PROTECTED_ROUTES = ['/dashboard', '/players', '/matrix', '/history', '/settings']
 
 /**
  * Edge-compatible JWT verification using Web Crypto API.
@@ -75,5 +75,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/players/:path*', '/history/:path*', '/settings/:path*'],
+  matcher: ['/dashboard/:path*', '/players/:path*', '/matrix/:path*', '/history/:path*', '/settings/:path*'],
 }

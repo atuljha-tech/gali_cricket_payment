@@ -6,6 +6,7 @@ import Player from '@/models/Player'
 import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { calculateFine, generateReceiptNo } from '@/lib/fineCalculator'
+import { isBeforeFeeStart } from '@/lib/feeConfig'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,6 +114,11 @@ export async function POST(req: NextRequest) {
 
     if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 9999) {
       return NextResponse.json({ error: 'month must be 1-12 and year must be valid' }, { status: 400 })
+    }
+
+    // Fees started July 2026 — earlier months cannot be charged.
+    if (isBeforeFeeStart(year, month)) {
+      return NextResponse.json({ error: 'The fee structure started in July 2026 — earlier months are not applicable.' }, { status: 400 })
     }
 
     const [player, settings] = await Promise.all([

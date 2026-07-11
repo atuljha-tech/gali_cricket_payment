@@ -4,14 +4,21 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   Search, QrCode, CheckCircle2, Clock, AlertCircle,
-  Star, Camera, ArrowRight, Shield, Users, IndianRupee
+  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
+import PlayerCard from '@/components/PlayerCard'
 
 interface PlayerRow {
   _id: string
   name: string
   phone?: string
+  role?: string
+  battingStyle?: string
+  bowlingArm?: string
+  bowlingType?: string
+  jerseyNumber?: number
+  isCaptain?: boolean
   payment: {
     _id?: string
     status: 'paid' | 'pending'
@@ -35,6 +42,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
+  const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
 
   const now = new Date()
   const month = now.getMonth() + 1
@@ -103,17 +111,17 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
 
         {/* ── Hero banner ─────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-900 via-green-950 to-slate-900 border border-green-800/30">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_50%,rgba(34,197,94,0.12),transparent_70%)]" />
-          <div className="absolute inset-0 pitch-bg opacity-20" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-900 via-green-950 to-slate-900 border border-green-500/25 shadow-[0_0_50px_-20px_rgba(34,197,94,0.6)]">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_50%,rgba(34,197,94,0.18),transparent_70%)]" />
+          <div className="absolute -left-10 -top-10 w-52 h-52 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow" />
           <div className="relative z-10 px-5 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-purple-500/30 shadow-xl shadow-purple-900/40 flex-shrink-0 hidden sm:block">
                 <Image src="/goc-logo.png" alt="GOC" width={56} height={56} className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-xl font-black text-white">
-                  {MONTH_NAMES[month]} <span className="text-green-400">{year}</span>
+                <h1 className="text-xl font-black gradient-text">
+                  {MONTH_NAMES[month]} {year}
                 </h1>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Monthly cricket fee — ₹{settings.monthlyFee} · Fine ₹{settings.dailyFine}/day after {settings.dueDate}th
@@ -157,7 +165,7 @@ export default function HomePage() {
         </div>
 
         {/* ── Players Table ────────────────────────────────────────────── */}
-        <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
+        <div className="card overflow-hidden">
 
           {/* Read-only notice */}
           <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-700/40 bg-slate-800/40">
@@ -218,7 +226,8 @@ export default function HomePage() {
 
                 return (
                   <div key={player._id}
-                    className={`group transition-colors duration-150 ${isPaid ? 'hover:bg-green-900/10' : isLate ? 'hover:bg-red-900/10' : 'hover:bg-slate-700/20'}`}>
+                    onClick={() => setCardPlayer(player)}
+                    className={`group cursor-pointer transition-colors duration-150 ${isPaid ? 'hover:bg-green-900/10' : isLate ? 'hover:bg-red-900/10' : 'hover:bg-slate-700/20'}`}>
 
                     {/* ── Mobile layout ─────────────────────────────────── */}
                     <div className="md:hidden px-4 py-3.5 space-y-2">
@@ -228,7 +237,10 @@ export default function HomePage() {
                             {player.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-white">{player.name}</p>
+                            <p className="text-sm font-semibold text-white flex items-center gap-1">
+                              {player.name}
+                              {player.isCaptain && <Crown size={11} className="text-yellow-400 fill-yellow-400" />}
+                            </p>
                             <p className="text-[10px] text-slate-500">#{idx + 1}</p>
                           </div>
                         </div>
@@ -266,7 +278,10 @@ export default function HomePage() {
                           {player.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{player.name}</p>
+                          <p className="text-sm font-semibold text-white truncate flex items-center gap-1">
+                            {player.name}
+                            {player.isCaptain && <Crown size={11} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
+                          </p>
                           <p className="text-[10px] text-slate-600">#{idx + 1}</p>
                         </div>
                       </div>
@@ -340,6 +355,11 @@ export default function HomePage() {
           GOC · Gali Online Cricket · {year} · Read-only public view
         </p>
       </div>
+
+      {/* Player speciality card (public view — no fees, no edit) */}
+      {cardPlayer && (
+        <PlayerCard player={cardPlayer} onClose={() => setCardPlayer(null)} />
+      )}
     </div>
   )
 }

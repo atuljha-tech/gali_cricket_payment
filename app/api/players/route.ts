@@ -28,9 +28,9 @@ export async function GET(req: NextRequest) {
 
     const [players, settings, payments] = await Promise.all([
       Player.find(query)
-        .select('_id name phone email joiningDate active')
+        .select('_id name phone email joiningDate active role battingStyle bowlingArm bowlingType jerseyNumber isCaptain')
         .sort({ name: 1 })
-        .lean<Array<{ _id: unknown; name: string; phone?: string; email?: string; joiningDate: Date; active: boolean }>>(),
+        .lean<Array<{ _id: unknown; name: string; phone?: string; email?: string; joiningDate: Date; active: boolean; role?: string; battingStyle?: string; bowlingArm?: string; bowlingType?: string; jerseyNumber?: number; isCaptain?: boolean }>>(),
       Settings.findOne()
         .select('monthlyFee dailyFine dueDate')
         .lean<{ monthlyFee: number; dailyFine: number; dueDate: number } | null>(),
@@ -59,6 +59,12 @@ export async function GET(req: NextRequest) {
         email:       player.email,
         joiningDate: player.joiningDate,
         active:      player.active,
+        role:         player.role || '',
+        battingStyle: player.battingStyle || '',
+        bowlingArm:   player.bowlingArm || '',
+        bowlingType:  player.bowlingType || '',
+        jerseyNumber: player.jerseyNumber,
+        isCaptain:    player.isCaptain || false,
         payment: {
           _id:       pay?._id,
           status:    (pay?.status ?? 'pending') as 'paid' | 'pending',

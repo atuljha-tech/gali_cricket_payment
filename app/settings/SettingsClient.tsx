@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import { Save, Upload, Loader2, CheckCircle2, QrCode, IndianRupee, Calendar, AlertCircle, Settings as SettingsIcon } from 'lucide-react'
+import { uploadToCloudinary } from '@/lib/uploadImage'
 
 interface Settings {
   monthlyFee: number
@@ -18,6 +19,7 @@ export default function SettingsClient({ adminName, adminEmail }: { adminName: s
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [uploadingQr, setUploadingQr] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -42,28 +44,22 @@ export default function SettingsClient({ adminName, adminEmail }: { adminName: s
     finally { setSaving(false) }
   }
 
-  function handleQRUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleQRUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10MB'); return }
     setError('')
-    // Compress to max 300px so the base64 stays tiny (~15-25KB) — safe for MongoDB
-    const img = new window.Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const MAX = 300
-      const ratio = Math.min(MAX / img.width, MAX / img.height, 1)
-      const canvas = document.createElement('canvas')
-      canvas.width  = Math.round(img.width  * ratio)
-      canvas.height = Math.round(img.height * ratio)
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      const compressed = canvas.toDataURL('image/jpeg', 0.75)
-      setSettings(s => ({ ...s, qrImage: compressed }))
+    setUploadingQr(true)
+    try {
+      // Uploads straight to Cloudinary — only the resulting URL is stored,
+      // never raw image bytes, so it stays fast regardless of photo size.
+      const uploaded = await uploadToCloudinary(file, 'qr')
+      setSettings(s => ({ ...s, qrImage: uploaded.url }))
+    } catch (err: any) {
+      setError(err.message || 'Could not upload QR image')
+    } finally {
+      setUploadingQr(false)
+      if (fileRef.current) fileRef.current.value = ''
     }
-    img.onerror = () => { setError('Could not read image file') }
-    img.src = url
   }
 
   if (loading) {
@@ -182,17 +178,17 @@ export default function SettingsClient({ adminName, adminEmail }: { adminName: s
                   </div>
                 ) : (
                   <div className="w-24 h-24 border-2 border-dashed border-slate-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <QrCode size={26} className="text-slate-600" />
+                    {uploadingQr ? <Loader2 size={22} className="text-slate-500 animate-spin" /> : <QrCode size={26} className="text-slate-600" />}
                   </div>
                 )}
                 <div className="flex-1 space-y-2">
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleQRUpload} />
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="flex items-center gap-2 px-4 py-2.5 border border-slate-600/60 hover:border-green-600/50 hover:text-green-400 rounded-xl text-sm text-slate-300 transition-all">
-                    <Upload size={15} />
-                    {settings.qrImage ? 'Replace QR Image' : 'Upload QR Image'}
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleQRUpload} disabled={uploadingQr} />
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingQr}
+                    className="flex items-center gap-2 px-4 py-2.5 border border-slate-600/60 hover:border-green-600/50 hover:text-green-400 rounded-xl text-sm text-slate-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                    {uploadingQr ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                    {uploadingQr ? 'Uploading...' : settings.qrImage ? 'Replace QR Image' : 'Upload QR Image'}
                   </button>
-                  <p className="text-xs text-slate-500">Upload your Google Pay / UPI QR code. PNG or JPG, max 2MB.</p>
+                  <p className="text-xs text-slate-500">Upload your Google Pay / UPI QR code. PNG or JPG, max 15MB.</p>
                 </div>
               </div>
             </div>

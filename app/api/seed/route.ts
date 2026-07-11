@@ -54,6 +54,12 @@ export async function POST() {
       }
     }
 
+    // ── Ensure a captain (default: Bitan) ────────────────────────────────────
+    const hasCaptain = await Player.exists({ isCaptain: true })
+    if (!hasCaptain) {
+      await Player.updateOne({ name: 'Bitan' }, { $set: { isCaptain: true } })
+    }
+
     // ── Default settings ─────────────────────────────────────────────────────
     const settingsCount = await Settings.countDocuments()
     if (settingsCount === 0) {

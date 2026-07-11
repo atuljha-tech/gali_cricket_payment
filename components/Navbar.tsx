@@ -5,12 +5,13 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, History, Settings, LogOut,
-  Menu, X, QrCode, Images, ChevronRight
+  Menu, X, QrCode, Images, ChevronRight, Grid3x3
 } from 'lucide-react'
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard',      icon: LayoutDashboard },
   { href: '/players',   label: 'Players',         icon: Users },
+  { href: '/matrix',    label: 'Fee Matrix',      icon: Grid3x3 },
   { href: '/history',   label: 'Payment History', icon: History },
   { href: '/gallery',   label: 'GOC Memories',    icon: Images },
   { href: '/settings',  label: 'Settings',        icon: Settings },
@@ -32,7 +33,7 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
   return (
     <>
       {/* ── Desktop sidebar ───────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col w-64 min-h-screen bg-slate-900/95 border-r border-slate-700/50 fixed left-0 top-0 z-30 backdrop-blur-xl">
+      <aside className="hidden md:flex flex-col w-64 min-h-screen bg-slate-950/70 border-r border-white/10 fixed left-0 top-0 z-30 backdrop-blur-2xl">
 
         {/* Logo */}
         <div className="px-5 py-5 border-b border-slate-700/50 flex-shrink-0">
@@ -41,7 +42,7 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
               <Image src="/goc-logo.png" alt="GOC Logo" width={48} height={48} className="w-full h-full object-cover" />
             </div>
             <div>
-              <h1 className="text-base font-black text-white tracking-tight">G.O.C</h1>
+              <h1 className="text-base font-black tracking-tight gradient-text">G.O.C</h1>
               <p className="text-[10px] text-green-400 font-medium uppercase tracking-widest">Cricket Manager</p>
             </div>
           </div>

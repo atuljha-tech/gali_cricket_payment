@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         .sort({ uploadedAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .select('image imageUrl url thumbnail thumbnailUrl uploadedAt uploaderName')
+        .select('imageUrl thumbnailUrl publicId uploadedAt uploaderName image url thumbnail')
         .lean(),
       GalleryPhoto.countDocuments(),
     ])
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       return jsonResponse({ error: 'Invalid request body' }, 400)
     }
 
-    const { imageUrl, thumbnailUrl, uploaderName } = body
+    const { imageUrl, thumbnailUrl, uploaderName, publicId } = body
     const normalizedName = typeof uploaderName === 'string' ? uploaderName.trim() : ''
 
     // Accept both data urls and regular urls
@@ -95,11 +95,9 @@ export async function POST(req: NextRequest) {
     })
 
     const photo = await GalleryPhoto.create({
-      image: imageUrl,
-      imageUrl: imageUrl,
-      url: imageUrl,
-      thumbnail: thumbnailUrl || imageUrl,
+      imageUrl,
       thumbnailUrl: thumbnailUrl || imageUrl,
+      publicId: typeof publicId === 'string' ? publicId : undefined,
       uploaderName: normalizedName || 'Anonymous',
       uploadedAt: new Date(),
     })

@@ -62,8 +62,8 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <h1 className="text-5xl font-black text-white mb-3 tracking-tight">
-            G<span className="text-green-400">O</span>C
+          <h1 className="text-6xl font-black mb-3 tracking-tight gradient-text drop-shadow-[0_0_25px_rgba(34,197,94,0.4)]">
+            GOC
           </h1>
           <p className="text-slate-400 text-base leading-relaxed mb-10">
             Manage your cricket club, players,<br />and monthly collections effortlessly.

@@ -1,0 +1,17 @@
+{
+  "name": "GOC Club — Gods of Cricket",
+  "short_name": "GOC Club",
+  "description": "Track monthly cricket fees, manage player payments, and share match memories.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/goc-logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

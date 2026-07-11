@@ -3,9 +3,11 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/AdminLayout'
 import Modal from '@/components/Modal'
+import PlayerCard from '@/components/PlayerCard'
+import PlayerProfileEditModal from '@/components/PlayerProfileEditModal'
 import {
   Search, Plus, CheckCircle2, Clock, AlertCircle,
-  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users, Trash2, X
+  Loader2, RotateCcw, ChevronRight, UserPlus, Filter, Users, Trash2, X, Crown
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -15,6 +17,12 @@ interface PlayerRow {
   phone: string
   email?: string
   joiningDate: string
+  role?: string
+  battingStyle?: string
+  bowlingArm?: string
+  bowlingType?: string
+  jerseyNumber?: number
+  isCaptain?: boolean
   payment: {
     _id?: string
     status: 'paid' | 'pending'
@@ -27,6 +35,7 @@ interface PlayerRow {
 }
 
 export default function PlayersClient({ adminName, adminEmail }: { adminName: string; adminId: string; adminEmail: string }) {
+  const isSuperAdmin = adminEmail === 'rishigoc@mail.com'
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
@@ -49,6 +58,9 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+
+  const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
+  const [profilePlayer, setProfilePlayer] = useState<PlayerRow | null>(null)
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true)
@@ -327,15 +339,18 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
                       {/* Mobile */}
                       <div className="lg:hidden px-4 py-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <button type="button" onClick={() => setCardPlayer(player)} className="flex items-center gap-3 min-w-0 text-left group/name">
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${avatarColor} flex-shrink-0`}>
                               {player.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-white truncate">{player.name}</p>
+                              <p className="text-sm font-semibold text-white truncate flex items-center gap-1 group-hover/name:text-green-400 transition-colors">
+                                {player.name}
+                                {player.isCaptain && <Crown size={12} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
+                              </p>
                               <p className="text-xs text-slate-500">{player.phone}</p>
                             </div>
-                          </div>
+                          </button>
                           {isPaid ? (
                             <span className="badge-paid"><CheckCircle2 size={11} />Paid</span>
                           ) : isLate ? (
@@ -379,15 +394,18 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
 
                       {/* Desktop */}
                       <div className="hidden lg:grid lg:grid-cols-[2fr_130px_70px_70px_90px_160px_80px] gap-4 px-5 py-3.5 items-center">
-                        <div className="flex items-center gap-3 min-w-0">
+                        <button type="button" onClick={() => setCardPlayer(player)} className="flex items-center gap-3 min-w-0 text-left group/name">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white bg-gradient-to-br ${avatarColor} flex-shrink-0`}>
                             {player.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{player.name}</p>
+                            <p className="text-sm font-semibold text-white truncate flex items-center gap-1 group-hover/name:text-green-400 transition-colors">
+                              {player.name}
+                              {player.isCaptain && <Crown size={12} className="text-yellow-400 fill-yellow-400 flex-shrink-0" />}
+                            </p>
                             <p className="text-xs text-slate-500 truncate">{player.email || '—'}</p>
                           </div>
-                        </div>
+                        </button>
                         <p className="text-sm text-slate-300">{player.phone}</p>
                         <p className="text-sm text-slate-300">₹{player.payment.amount}</p>
                         <p className={`text-sm font-medium ${player.payment.fine > 0 ? 'text-red-400' : 'text-slate-500'}`}>
@@ -522,6 +540,26 @@ export default function PlayersClient({ adminName, adminEmail }: { adminName: st
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Player profile card popup */}
+      {cardPlayer && (
+        <PlayerCard
+          player={cardPlayer}
+          showFees
+          canEdit={isSuperAdmin}
+          onClose={() => setCardPlayer(null)}
+          onEdit={() => { setProfilePlayer(cardPlayer); setCardPlayer(null) }}
+        />
+      )}
+
+      {/* Superadmin (Rishi) speciality + captain editor */}
+      {profilePlayer && (
+        <PlayerProfileEditModal
+          player={profilePlayer}
+          onClose={() => setProfilePlayer(null)}
+          onSaved={() => { setProfilePlayer(null); fetchPlayers() }}
+        />
       )}
     </AdminLayout>
   )

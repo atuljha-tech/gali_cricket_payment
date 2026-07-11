@@ -17,23 +17,35 @@ const styles = {
   purple: { wrap: 'stat-blue',   icon: 'bg-purple-500/15 text-purple-400', val: 'text-purple-400', dot: 'bg-purple-500' },
 }
 
+const glowBg = {
+  green:  'bg-green-500',
+  yellow: 'bg-yellow-500',
+  red:    'bg-red-500',
+  blue:   'bg-indigo-500',
+  purple: 'bg-purple-500',
+}
+
 export default function StatCard({ title, value, icon: Icon, color, subtitle, trend }: StatCardProps) {
   const s = styles[color]
   return (
-    <div className={`card ${s.wrap} p-5 hover:bg-slate-800/80 transition-all duration-300 group cursor-default`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${s.icon} transition-transform duration-300 group-hover:scale-110`}>
-          <Icon size={20} />
+    <div className={`card card-hover ${s.wrap} p-5 group cursor-default relative overflow-hidden`}>
+      {/* Ambient corner glow */}
+      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full ${glowBg[color]} opacity-[0.12] blur-2xl group-hover:opacity-25 transition-opacity duration-500`} />
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-4">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${s.icon} transition-transform duration-300 group-hover:scale-110`}>
+            <Icon size={20} />
+          </div>
+          {trend && (
+            <span className="text-xs text-green-400 font-medium bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+              {trend}
+            </span>
+          )}
         </div>
-        {trend && (
-          <span className="text-xs text-green-400 font-medium bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
-            {trend}
-          </span>
-        )}
+        <p className={`text-3xl font-bold tracking-tight ${s.val} mb-1`}>{value}</p>
+        <p className="text-sm font-medium text-slate-300">{title}</p>
+        {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
       </div>
-      <p className={`text-3xl font-bold tracking-tight ${s.val} mb-1`}>{value}</p>
-      <p className="text-sm font-medium text-slate-300">{title}</p>
-      {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
     </div>
   )
 }

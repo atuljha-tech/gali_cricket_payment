@@ -6,7 +6,7 @@ import StatCard from '@/components/StatCard'
 import {
   Users, CheckCircle2, Clock, AlertCircle,
   IndianRupee, TrendingUp, ChevronRight,
-  Trophy, Zap, Calendar, ArrowUpRight
+  Trophy, Zap, Calendar, ArrowUpRight, Grid3x3
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -169,9 +169,9 @@ export default function DashboardClient({ adminName, adminEmail }: { adminName: 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { href: '/players', label: 'Mark Payments', icon: CheckCircle2, color: 'from-green-600 to-green-700', shadow: 'shadow-green-900/30' },
+              { href: '/matrix', label: 'Fee Matrix', icon: Grid3x3, color: 'from-indigo-600 to-indigo-700', shadow: 'shadow-indigo-900/30' },
               { href: '/players?action=add', label: 'Add Player', icon: Users, color: 'from-blue-600 to-blue-700', shadow: 'shadow-blue-900/30' },
               { href: '/history', label: 'View History', icon: TrendingUp, color: 'from-purple-600 to-purple-700', shadow: 'shadow-purple-900/30' },
-              { href: '/settings', label: 'Settings', icon: Trophy, color: 'from-slate-600 to-slate-700', shadow: 'shadow-slate-900/20' },
             ].map(({ href, label, icon: Icon, color, shadow }) => (
               <Link
                 key={href}

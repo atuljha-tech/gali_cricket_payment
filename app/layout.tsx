@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -46,12 +46,15 @@ export const metadata: Metadata = {
     shortcut: '/goc-logo.png',
   },
   manifest: '/manifest.json',
-  themeColor: '#0f172a',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'GOC Club',
   },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#0f172a',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

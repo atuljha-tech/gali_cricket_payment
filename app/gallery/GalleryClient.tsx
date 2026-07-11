@@ -7,6 +7,7 @@ import {
   Camera, Star, Trophy, ArrowLeft,
   ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react'
+import { uploadToCloudinary } from '@/lib/uploadImage'
 
 interface Photo {
   _id: string
@@ -14,66 +15,6 @@ interface Photo {
   thumbnailUrl: string
   uploadedAt: string
   uploaderName?: string
-}
-
-// Compress image - creates MAXIMUM QUALITY full-size image plus a thumbnail while preserving aspect ratio
-function compressImage(file: File, maxDimension = 2500, quality = 1.0): Promise<{ full: string; thumbnail: string }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-
-      // Full-size image: high quality, preserve original as much as possible
-      const fullCanvas = document.createElement('canvas')
-      const fullRatio = Math.min(maxDimension / img.width, maxDimension / img.height, 1)
-      fullCanvas.width = Math.round(img.width * fullRatio)
-      fullCanvas.height = Math.round(img.height * fullRatio)
-
-      const fullCtx = fullCanvas.getContext('2d', { willReadFrequently: false })
-      if (!fullCtx) {
-        reject(new Error('Unable to process image'))
-        return
-      }
-
-      // Use high-quality image rendering
-      fullCtx.imageSmoothingEnabled = true
-      fullCtx.imageSmoothingQuality = 'high'
-      fullCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height)
-
-      const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
-      const full = fullCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : quality)
-
-      // Thumbnail
-      const thumbMax = 400
-      const thumbCanvas = document.createElement('canvas')
-      const thumbRatio = Math.min(thumbMax / img.width, thumbMax / img.height, 1)
-      thumbCanvas.width = Math.round(img.width * thumbRatio)
-      thumbCanvas.height = Math.round(img.height * thumbRatio)
-
-      const thumbCtx = thumbCanvas.getContext('2d', { willReadFrequently: false })
-      if (!thumbCtx) {
-        reject(new Error('Unable to process thumbnail'))
-        return
-      }
-
-      thumbCtx.imageSmoothingEnabled = true
-      thumbCtx.imageSmoothingQuality = 'high'
-      thumbCtx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height)
-
-      const thumbnail = thumbCanvas.toDataURL(outputType, outputType === 'image/png' ? undefined : 0.9)
-
-      resolve({ full, thumbnail })
-    }
-
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('Image could not be read'))
-    }
-
-    img.src = url
-  })
 }
 
 // Lightbox
@@ -192,6 +133,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const [uploaderName, setUploaderName] = useState('')
   const [loading, setLoading]           = useState(false)
   const [done, setDone]                 = useState(0)
+  const [currentPct, setCurrentPct]     = useState(0)
   const [error, setError]               = useState('')
   const [dragOver, setDragOver]         = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -220,25 +162,29 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     setLoading(true)
     setError('')
     setDone(0)
+    setCurrentPct(0)
 
     const name = uploaderName.trim() || 'Anonymous'
     const errors: string[] = []
 
     for (let i = 0; i < previews.length; i++) {
       try {
+        setCurrentPct(0)
         console.log('[gallery] uploading photo', { index: i + 1, total: previews.length })
-        
-        // Generate MAXIMUM quality data URL for storage
-        const { full, thumbnail } = await compressImage(previews[i].file, 3000, 1.0)
-        console.log('[gallery] compressed payload', { index: i + 1, fullSize: full.length, thumbnailSize: thumbnail.length })
+
+        // Upload straight from the browser to Cloudinary — the image bytes
+        // never pass through our server, so there's no Vercel body-size limit
+        // and MongoDB only ever stores the resulting URL + metadata.
+        const uploaded = await uploadToCloudinary(previews[i].file, 'gallery', setCurrentPct)
 
         const res = await fetch('/api/gallery', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            imageUrl: full,        // Send as URL (data URL)
-            thumbnailUrl: thumbnail,
-            uploaderName: name 
+          body: JSON.stringify({
+            imageUrl: uploaded.url,
+            thumbnailUrl: uploaded.thumbnailUrl,
+            publicId: uploaded.publicId,
+            uploaderName: name,
           }),
         })
 
@@ -273,7 +219,9 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     }
   }
 
-  const progress = previews.length ? Math.round((done / previews.length) * 100) : 0
+  const progress = previews.length
+    ? Math.round(((done + currentPct / 100) / previews.length) * 100)
+    : 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">

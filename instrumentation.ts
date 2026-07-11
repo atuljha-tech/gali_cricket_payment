@@ -21,6 +21,13 @@ export async function register() {
           Settings.countDocuments(),
         ])
 
+        // Ensure exactly one captain exists — default to Bitan. Runs every boot
+        // (cheap single query) so existing databases get a captain too.
+        const hasCaptain = await Player.exists({ isCaptain: true })
+        if (!hasCaptain) {
+          await Player.updateOne({ name: 'Bitan' }, { $set: { isCaptain: true } })
+        }
+
         if (adminCount >= 4 && playerCount >= 23 && settingsCount >= 1) {
           return // Already seeded — nothing to do
         }

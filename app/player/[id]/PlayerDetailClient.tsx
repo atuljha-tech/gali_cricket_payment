@@ -1,9 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/AdminLayout'
-import { ArrowLeft, CheckCircle2, Clock, AlertCircle, Phone, Mail, Calendar } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Clock, AlertCircle, Phone, Mail, Calendar, Crown, Shield, CircleDot, Pencil } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
+import { battingLabel, bowlingLabel } from '@/lib/playerMeta'
+import PlayerProfileEditModal from '@/components/PlayerProfileEditModal'
 
 interface Payment {
   _id: string; month: number; year: number; amount: number; fine: number; total: number
@@ -11,19 +13,24 @@ interface Payment {
 }
 interface Player {
   _id: string; name: string; phone: string; email?: string; joiningDate: string; active: boolean
+  role?: string; battingStyle?: string; bowlingArm?: string; bowlingType?: string; jerseyNumber?: number; isCaptain?: boolean
 }
 
-export default function PlayerDetailClient({ playerId, adminName }: { playerId: string; adminName: string }) {
+export default function PlayerDetailClient({ playerId, adminName, adminEmail }: { playerId: string; adminName: string; adminEmail?: string }) {
+  const isSuperAdmin = adminEmail === 'rishigoc@mail.com'
   const [player, setPlayer] = useState<Player | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
+  const [editOpen, setEditOpen] = useState(false)
 
-  useEffect(() => {
+  const fetchPlayer = useCallback(() => {
     fetch(`/api/players/${playerId}`)
       .then(r => r.json())
       .then(d => { setPlayer(d.player); setPayments(d.payments || []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [playerId])
+
+  useEffect(() => { fetchPlayer() }, [fetchPlayer])
 
   if (loading) return (
     <AdminLayout adminName={adminName}>
@@ -56,21 +63,44 @@ export default function PlayerDetailClient({ playerId, adminName }: { playerId: 
         </Link>
 
         {/* Profile */}
-        <div className="card p-6">
+        <div className="card p-6 relative">
+          {isSuperAdmin && (
+            <button onClick={() => setEditOpen(true)}
+              className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 btn-ghost text-xs z-10">
+              <Pencil size={13} /> Edit
+            </button>
+          )}
           <div className="flex items-start gap-5">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-800 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0 shadow-lg shadow-green-900/30">
-              {player.name.charAt(0).toUpperCase()}
+            <div className="relative flex-shrink-0">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-800 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-lg shadow-green-900/30">
+                {player.jerseyNumber != null ? player.jerseyNumber : player.name.charAt(0).toUpperCase()}
+              </div>
+              {player.isCaptain && (
+                <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg ring-2 ring-yellow-200" title="Team Captain">
+                  <Crown size={14} className="text-yellow-900 fill-yellow-900" />
+                </div>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl font-black text-white">{player.name}</h1>
+                {player.isCaptain && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-yellow-900 bg-yellow-400 px-2 py-0.5 rounded-full">
+                    <Crown size={10} className="fill-yellow-900" /> CAPTAIN
+                  </span>
+                )}
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${player.active ? 'bg-green-500/15 text-green-400 border border-green-500/25' : 'bg-red-500/15 text-red-400 border border-red-500/25'}`}>
                   {player.active ? 'Active' : 'Inactive'}
                 </span>
+                {player.role && (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                    {player.role}
+                  </span>
+                )}
               </div>
               <div className="mt-2.5 space-y-1.5">
                 <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Phone size={13} className="text-slate-500" /> {player.phone}
+                  <Phone size={13} className="text-slate-500" /> {player.phone || '—'}
                 </div>
                 {player.email && (
                   <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -83,6 +113,30 @@ export default function PlayerDetailClient({ playerId, adminName }: { playerId: 
               </div>
             </div>
           </div>
+
+          {/* Cricket speciality */}
+          {(player.battingStyle || player.bowlingArm || player.role) && (
+            <div className="grid grid-cols-2 gap-3 mt-5">
+              <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Shield size={12} className="text-emerald-400" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Batting</span>
+                </div>
+                <p className={`text-sm font-semibold ${player.battingStyle ? 'text-white' : 'text-slate-600'}`}>
+                  {battingLabel(player.battingStyle) || 'Not set'}
+                </p>
+              </div>
+              <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3.5">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CircleDot size={12} className="text-indigo-400" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bowling</span>
+                </div>
+                <p className={`text-sm font-semibold ${player.bowlingArm ? 'text-white' : 'text-slate-600'}`}>
+                  {bowlingLabel(player.bowlingArm, player.bowlingType) || 'Doesn’t bowl'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Mini stats */}
           <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-700/40">
@@ -143,6 +197,14 @@ export default function PlayerDetailClient({ playerId, adminName }: { playerId: 
           )}
         </div>
       </div>
+
+      {isSuperAdmin && editOpen && player && (
+        <PlayerProfileEditModal
+          player={player}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => { setEditOpen(false); fetchPlayer() }}
+        />
+      )}
     </AdminLayout>
   )
 }
