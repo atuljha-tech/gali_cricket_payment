@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, History, Settings, LogOut,
-  Menu, X, QrCode, Images, ChevronRight, Grid3x3, Wallet
+  Menu, X, QrCode, Images, ChevronRight, Grid3x3, Wallet, BarChart3
 } from 'lucide-react'
 
 const navItems = [
@@ -16,6 +16,11 @@ const navItems = [
   { href: '/fund',      label: 'Fund Spending',   icon: Wallet },
   { href: '/gallery',   label: 'GOC Memories',    icon: Images },
   { href: '/settings',  label: 'Settings',        icon: Settings },
+]
+
+const publicItems = [
+  { href: '/stats', label: 'Public Stats', icon: BarChart3 },
+  { href: '/qr',    label: 'QR Payment',   icon: QrCode },
 ]
 
 export default function Navbar({ adminName, adminEmail }: { adminName?: string; adminEmail?: string }) {
@@ -64,10 +69,13 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
           })}
           <div className="pt-3">
             <p className="px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Public</p>
-            <Link href="/qr" className={pathname === '/qr' ? 'nav-link-active' : 'nav-link'}>
-              <QrCode size={17} className="flex-shrink-0" />
-              <span className="flex-1">QR Payment</span>
-            </Link>
+            {publicItems.map(({ href, label, icon: Icon }) => (
+              <Link key={href} href={href} className={pathname === href ? 'nav-link-active' : 'nav-link'}>
+                <Icon size={17} className="flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {pathname === href && <ChevronRight size={13} className="opacity-60" />}
+              </Link>
+            ))}
           </div>
         </nav>
 
@@ -146,18 +154,22 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
 
                 <div className="pt-2">
                   <p className="px-3 pb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Public</p>
-                  <Link
-                    href="/qr"
-                    onClick={close}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-medium transition-all ${
-                      pathname === '/qr'
-                        ? 'bg-green-600 text-white shadow-lg shadow-green-900/40'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-700/60 active:bg-slate-700'
-                    }`}
-                  >
-                    <QrCode size={20} className="flex-shrink-0" />
-                    <span className="flex-1">QR Payment</span>
-                  </Link>
+                  {publicItems.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={close}
+                      className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-base font-medium transition-all ${
+                        pathname === href
+                          ? 'bg-green-600 text-white shadow-lg shadow-green-900/40'
+                          : 'text-slate-300 hover:text-white hover:bg-slate-700/60 active:bg-slate-700'
+                      }`}
+                    >
+                      <Icon size={20} className="flex-shrink-0" />
+                      <span className="flex-1">{label}</span>
+                      {pathname === href && <ChevronRight size={14} className="opacity-60" />}
+                    </Link>
+                  ))}
                 </div>
               </nav>
             </div>

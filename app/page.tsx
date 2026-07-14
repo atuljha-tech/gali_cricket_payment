@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   Search, QrCode, CheckCircle2, Clock, AlertCircle,
-  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown, Wallet
+  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown, Wallet, BarChart3
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 import PlayerCard from '@/components/PlayerCard'
@@ -92,6 +92,10 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link href="/stats"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 border border-blue-500/25 text-blue-400 hover:bg-blue-500/25 rounded-lg text-xs font-semibold transition-all">
+              <BarChart3 size={12} /> Stats
+            </Link>
             <Link href="/fund"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-lg text-xs font-semibold transition-all">
               <Wallet size={12} /> Spending

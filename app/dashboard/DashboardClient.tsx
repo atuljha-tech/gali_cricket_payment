@@ -6,7 +6,8 @@ import StatCard from '@/components/StatCard'
 import {
   Users, CheckCircle2, Clock, AlertCircle,
   IndianRupee, TrendingUp, ChevronRight,
-  Trophy, Zap, Calendar, ArrowUpRight, Grid3x3
+  Zap, Calendar, ArrowUpRight, Grid3x3,
+  TrendingDown, Wallet
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -17,6 +18,8 @@ interface DashboardData {
   lateCount: number
   thisMonthCollection: number
   totalCollection: number
+  totalSpent: number
+  availableBalance: number
   month: number
   year: number
 }
@@ -99,8 +102,8 @@ export default function DashboardClient({ adminName, adminEmail }: { adminName: 
 
       {/* Stats Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[...Array(8)].map((_, i) => (
             <div key={i} className="card p-5 animate-pulse">
               <div className="w-11 h-11 bg-slate-700 rounded-xl mb-4" />
               <div className="h-8 bg-slate-700 rounded-lg w-1/2 mb-2" />
@@ -109,51 +112,29 @@ export default function DashboardClient({ adminName, adminEmail }: { adminName: 
           ))}
         </div>
       ) : data ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <StatCard
-            title="Total Players"
-            value={data.totalPlayers}
-            icon={Users}
-            color="blue"
-            subtitle="Active members"
-          />
-          <StatCard
-            title="Paid"
-            value={data.paidCount}
-            icon={CheckCircle2}
-            color="green"
-            subtitle={`${Math.round((data.paidCount / Math.max(data.totalPlayers, 1)) * 100)}% of total`}
-            trend="This month"
-          />
-          <StatCard
-            title="Pending"
-            value={data.pendingCount}
-            icon={Clock}
-            color="yellow"
-            subtitle="Yet to pay"
-          />
-          <StatCard
-            title="Late Payments"
-            value={data.lateCount}
-            icon={AlertCircle}
-            color="red"
-            subtitle="Past due date"
-          />
-          <StatCard
-            title="This Month"
-            value={`₹${data.thisMonthCollection}`}
-            icon={IndianRupee}
-            color="green"
-            subtitle="Collected"
-          />
-          <StatCard
-            title="Total Collected"
-            value={`₹${data.totalCollection}`}
-            icon={TrendingUp}
-            color="purple"
-            subtitle="All time"
-          />
-        </div>
+        <>
+          {/* Payment stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <StatCard title="Total Players"  value={data.totalPlayers}              icon={Users}         color="blue"   subtitle="Active members" />
+            <StatCard title="Paid"           value={data.paidCount}                 icon={CheckCircle2}  color="green"  subtitle={`${Math.round((data.paidCount / Math.max(data.totalPlayers, 1)) * 100)}% of total`} trend="This month" />
+            <StatCard title="Pending"        value={data.pendingCount}              icon={Clock}         color="yellow" subtitle="Yet to pay" />
+            <StatCard title="Late Payments"  value={data.lateCount}                 icon={AlertCircle}   color="red"    subtitle="Past due date" />
+          </div>
+
+          {/* Fund stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <StatCard title="This Month"     value={`₹${data.thisMonthCollection}`} icon={IndianRupee}   color="green"  subtitle="Collected" />
+            <StatCard title="Total Collected" value={`₹${data.totalCollection}`}   icon={TrendingUp}    color="purple" subtitle="All time" />
+            <StatCard title="Total Spent"    value={`₹${data.totalSpent}`}         icon={TrendingDown}  color="red"    subtitle="From fund" />
+            <StatCard
+              title="Available Balance"
+              value={`₹${data.availableBalance}`}
+              icon={Wallet}
+              color={data.availableBalance >= 0 ? 'green' : 'red'}
+              subtitle={data.availableBalance >= 0 ? 'In fund' : 'Deficit'}
+            />
+          </div>
+        </>
       ) : (
         <div className="card p-10 text-center text-slate-500 mb-6">Failed to load dashboard data</div>
       )}
@@ -194,8 +175,22 @@ export default function DashboardClient({ adminName, adminEmail }: { adminName: 
           {data && (
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
-                <span className="text-xs text-slate-400">Collection</span>
+                <span className="text-xs text-slate-400">This month</span>
                 <span className="text-sm font-bold text-green-400">₹{data.thisMonthCollection}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span className="text-xs text-slate-400">Total collected</span>
+                <span className="text-sm font-bold text-purple-400">₹{data.totalCollection}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span className="text-xs text-slate-400">Total spent</span>
+                <span className="text-sm font-bold text-red-400">−₹{data.totalSpent}</span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
+                <span className="text-xs text-slate-400 font-semibold">Balance</span>
+                <span className={`text-sm font-black ${data.availableBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  ₹{data.availableBalance}
+                </span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-slate-700/50">
                 <span className="text-xs text-slate-400">Pending dues</span>
@@ -210,6 +205,13 @@ export default function DashboardClient({ adminName, adminEmail }: { adminName: 
                 className="flex items-center justify-between w-full mt-2 p-3 bg-green-600/15 hover:bg-green-600/25 border border-green-600/25 rounded-xl text-sm font-semibold text-green-400 transition-all duration-200"
               >
                 Manage Payments
+                <ArrowUpRight size={14} />
+              </Link>
+              <Link
+                href="/fund"
+                className="flex items-center justify-between w-full p-3 bg-red-600/10 hover:bg-red-600/20 border border-red-600/20 rounded-xl text-sm font-semibold text-red-400 transition-all duration-200"
+              >
+                Log Expense
                 <ArrowUpRight size={14} />
               </Link>
             </div>

@@ -1,28 +1,27 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import Player from '@/models/Player'
 import Payment from '@/models/Payment'
 import Settings from '@/models/Settings'
-import { verifyRequestToken } from '@/lib/auth'
+import Transaction from '@/models/Transaction'
 import { calculateFine } from '@/lib/fineCalculator'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
-  const admin = verifyRequestToken(req)
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+// Public endpoint — no auth required so anyone can view the stats page
+export async function GET() {
   try {
     await dbConnect()
     const now = new Date()
     const month = now.getMonth() + 1
     const year = now.getFullYear()
 
-    const [players, payments, allPaidPayments, settings] = await Promise.all([
+    const [players, payments, allPaidPayments, settings, totalSpentResult] = await Promise.all([
       Player.find({ active: true }).lean<Array<{_id: unknown}>>(),
       Payment.find({ month, year }).lean<Array<{playerId: unknown; status: string; total: number}>>(),
       Payment.find({ status: 'paid' }).select('total').lean<Array<{total: number}>>(),
       Settings.findOne().lean<{monthlyFee: number; dailyFine: number; dueDate: number} | null>(),
+      Transaction.aggregate([{ $group: { _id: null, sum: { $sum: '$amount' } } }]),
     ])
 
     const totalPlayers = players.length
@@ -42,6 +41,8 @@ export async function GET(req: NextRequest) {
       .reduce((sum, p) => sum + p.total, 0)
 
     const totalCollection = allPaidPayments.reduce((sum, p) => sum + p.total, 0)
+    const totalSpent = totalSpentResult[0]?.sum ?? 0
+    const availableBalance = totalCollection - totalSpent
 
     return NextResponse.json({
       totalPlayers,
@@ -50,6 +51,8 @@ export async function GET(req: NextRequest) {
       lateCount,
       thisMonthCollection,
       totalCollection,
+      totalSpent,
+      availableBalance,
       month,
       year,
     })
