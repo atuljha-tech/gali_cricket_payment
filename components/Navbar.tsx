@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -28,6 +28,30 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
   const pathname = usePathname()
   const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [mobileOpen])
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -112,6 +136,8 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
             onClick={() => setMobileOpen(o => !o)}
             className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-700/60 text-slate-300 hover:text-white transition-colors"
             aria-label="Toggle menu"
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-drawer"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -125,7 +151,10 @@ export default function Navbar({ adminName, adminEmail }: { adminName?: string; 
           <div className="md:hidden fixed inset-0 z-40 bg-black/70" onClick={close} />
 
           {/* Drawer — full height from below top bar, scrollable */}
-          <div className="md:hidden fixed left-0 right-0 top-14 bottom-0 z-50 bg-slate-900 border-t border-slate-700/50 flex flex-col overflow-hidden">
+          <div
+            id="mobile-nav-drawer"
+            className="md:hidden fixed left-0 right-0 top-14 bottom-0 z-50 bg-slate-900 border-t border-slate-700/50 flex flex-col overflow-hidden max-h-[calc(100dvh-3.5rem)]"
+          >
 
             {/* Scrollable nav area */}
             <div className="flex-1 overflow-y-auto overscroll-contain">

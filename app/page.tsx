@@ -4,7 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   Search, QrCode, CheckCircle2, Clock, AlertCircle,
-  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown, Wallet, BarChart3
+  Star, Camera, ArrowRight, Shield, Users, IndianRupee,
+  Crown, Wallet, BarChart3, Menu, X
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 import PlayerCard from '@/components/PlayerCard'
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [settings, setSettings] = useState({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
   const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const now = new Date()
   const month = now.getMonth() + 1
@@ -77,43 +79,52 @@ export default function HomePage() {
     <div className="min-h-screen bg-slate-950 text-slate-100 pitch-bg">
 
       {/* ── Top Nav ─────────────────────────────────────────────────── */}
-      <header className="bg-slate-900/95 border-b border-slate-700/50 sticky top-0 z-20 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <header className="bg-slate-900/95 border-b border-slate-700/50 sticky top-0 z-30 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden border border-purple-700/30 shadow-lg shadow-purple-900/30 flex-shrink-0">
-              <Image src="/goc-logo.png" alt="GOC" width={40} height={40} className="w-full h-full object-cover" />
+            <div className="w-9 h-9 rounded-xl overflow-hidden border border-purple-700/30 shadow-lg shadow-purple-900/30 flex-shrink-0">
+              <Image src="/goc-logo.png" alt="GOC" width={36} height={36} className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="font-black text-sm text-white tracking-tight">G.O.C</p>
-              <p className="text-[10px] text-green-400 font-medium">
+              <p className="text-[10px] text-green-400 font-medium hidden sm:block">
                 {MONTH_NAMES[month]} {year} · Gods of Cricket
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link href="/stats"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 border border-blue-500/25 text-blue-400 hover:bg-blue-500/25 rounded-lg text-xs font-semibold transition-all">
-              <BarChart3 size={12} /> Stats
-            </Link>
-            <Link href="/fund"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-lg text-xs font-semibold transition-all">
-              <Wallet size={12} /> Spending
-            </Link>
-            <Link href="/gallery"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all">
-              <Star size={12} className="fill-amber-400" /> Memories
-            </Link>
-            <Link href="/qr"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-all">
-              <QrCode size={12} /> Pay
-            </Link>
-            <Link href="/login"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-green-900/30">
-              <Shield size={12} /> Admin
-            </Link>
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/stats"   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 border border-blue-500/25 text-blue-400 hover:bg-blue-500/25 rounded-lg text-xs font-semibold transition-all"><BarChart3 size={12} /> Stats</Link>
+            <Link href="/fund"    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-lg text-xs font-semibold transition-all"><Wallet size={12} /> Spending</Link>
+            <Link href="/gallery" className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all"><Star size={12} className="fill-amber-400" /> Memories</Link>
+            <Link href="/qr"      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-all"><QrCode size={12} /> Pay</Link>
+            <Link href="/login"   className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-green-900/30"><Shield size={12} /> Admin</Link>
+          </div>
+
+          {/* Mobile: Pay + Admin always visible, hamburger for rest */}
+          <div className="flex md:hidden items-center gap-2">
+            <Link href="/qr"    className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-700/60 border border-slate-600/50 text-slate-300 rounded-lg text-xs font-medium transition-all"><QrCode size={12} /> Pay</Link>
+            <Link href="/login" className="flex items-center gap-1 px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-semibold transition-all"><Shield size={12} /> Admin</Link>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-700/60 text-slate-300 hover:text-white transition-colors"
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? <X size={16} /> : <Menu size={16} />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {menuOpen && (
+          <div className="md:hidden border-t border-slate-700/50 bg-slate-900/98 px-4 py-3 flex flex-col gap-2">
+            <Link href="/stats"   onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold transition-all active:scale-95"><BarChart3 size={16} /> GOC Stats</Link>
+            <Link href="/fund"    onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold transition-all active:scale-95"><Wallet size={16} /> Fund Spending</Link>
+            <Link href="/gallery" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-semibold transition-all active:scale-95"><Star size={16} className="fill-amber-400" /> GOC Memories</Link>
+          </div>
+        )}
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
