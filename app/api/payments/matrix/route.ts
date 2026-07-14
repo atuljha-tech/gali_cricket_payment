@@ -48,9 +48,9 @@ export async function GET(req: NextRequest) {
         .lean(),
     ])
 
-    const monthlyFee = settings?.monthlyFee ?? 20
+    const monthlyFee = settings?.monthlyFee ?? 30
     const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 10
+    const dueDate = settings?.dueDate ?? 28
 
     const now = new Date()
     const currentMonth = now.getMonth() + 1

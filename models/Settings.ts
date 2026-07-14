@@ -10,9 +10,9 @@ export interface ISettings extends Document {
 
 const SettingsSchema = new Schema<ISettings>(
   {
-    monthlyFee: { type: Number, default: 20 },
+    monthlyFee: { type: Number, default: 30 },
     dailyFine: { type: Number, default: 2 },
-    dueDate: { type: Number, default: 10 },
+    dueDate: { type: Number, default: 28 },
     qrImage: { type: String, default: '' },
     upiId: { type: String, default: '' },
   },

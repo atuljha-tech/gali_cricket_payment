@@ -137,9 +137,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ payment: alreadyPaid, receiptNo: alreadyPaid.receiptNo })
     }
 
-    const fee = settings?.monthlyFee ?? 20
+    const fee = settings?.monthlyFee ?? 30
     const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 10
+    const dueDate = settings?.dueDate ?? 28
     const now = new Date()
 
     const fine = calculateFine(year, month, dueDate, dailyFine, now)

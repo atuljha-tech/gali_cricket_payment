@@ -41,9 +41,9 @@ export async function GET(req: NextRequest) {
         .lean(),
     ])
 
-    const fee       = settings?.monthlyFee ?? 20
+    const fee       = settings?.monthlyFee ?? 30
     const dailyFine = settings?.dailyFine  ?? 2
-    const dueDate   = settings?.dueDate    ?? 10
+    const dueDate   = settings?.dueDate    ?? 28
 
     const paymentMap = new Map<string, typeof payments[number]>()
     for (const payment of payments) {

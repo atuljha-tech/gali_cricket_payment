@@ -29,7 +29,7 @@ export async function GET() {
     const pendingCount = totalPlayers - paidCount
 
     const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 10
+    const dueDate = settings?.dueDate ?? 28
     const lateCount = players.filter((player) => {
       const payment = payments.find((p) => p.playerId?.toString() === String(player._id))
       if (payment?.status === 'paid') return false

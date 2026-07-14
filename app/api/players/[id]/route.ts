@@ -17,8 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     const settings = await Settings.findOne().lean<{monthlyFee: number; dailyFine: number; dueDate: number} | null>()
     const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 10
-    const monthlyFee = settings?.monthlyFee ?? 20
+    const dueDate = settings?.dueDate ?? 28
+    const monthlyFee = settings?.monthlyFee ?? 30
 
     // All payments for this player
     const payments = await Payment.find({ playerId: params.id })

@@ -43,7 +43,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [settings, setSettings] = useState({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
+  const [settings, setSettings] = useState({ monthlyFee: 30, dailyFine: 2, dueDate: 28 })
   const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 

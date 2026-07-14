@@ -14,7 +14,7 @@ interface Settings {
 
 export default function SettingsClient({ adminName, adminEmail }: { adminName: string; adminEmail: string }) {
   const isSuperAdmin = adminEmail === 'rishigoc@mail.com'
-  const [settings, setSettings] = useState<Settings>({ monthlyFee: 20, dailyFine: 2, dueDate: 10, qrImage: '', upiId: '' })
+  const [settings, setSettings] = useState<Settings>({ monthlyFee: 30, dailyFine: 2, dueDate: 28, qrImage: '', upiId: '' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

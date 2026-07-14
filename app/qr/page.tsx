@@ -58,7 +58,7 @@ export default function QRPage() {
                 )}
 
                 <div className="text-center">
-                  <p className="text-4xl font-black text-white">₹{settings?.monthlyFee ?? 20}</p>
+                  <p className="text-4xl font-black text-white">₹{settings?.monthlyFee ?? 30}</p>
                   <p className="text-xs text-green-400 font-semibold uppercase tracking-widest mt-1">Monthly Cricket Fee</p>
                 </div>
 
@@ -83,7 +83,7 @@ export default function QRPage() {
                 {[
                   'Open Google Pay, PhonePe, or any UPI app',
                   'Tap "Scan QR" and scan the code above',
-                  `Pay ₹${settings?.monthlyFee ?? 20} — the monthly cricket fee`,
+                  `Pay ₹${settings?.monthlyFee ?? 30} — the monthly cricket fee`,
                   'Take a screenshot of the confirmation',
                   'Tell the admin — they will mark you as Paid',
                 ].map((step, i) => (

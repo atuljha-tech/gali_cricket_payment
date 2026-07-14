@@ -64,9 +64,9 @@ export async function POST() {
     const settingsCount = await Settings.countDocuments()
     if (settingsCount === 0) {
       await Settings.create({
-        monthlyFee: 20,
+        monthlyFee: 30,
         dailyFine: 2,
-        dueDate: 10,
+        dueDate: 28,
         qrImage: '',
         upiId: '',
       })

@@ -14,7 +14,7 @@ export async function GET() {
     await dbConnect()
     let settings = await Settings.findOne().lean()
     if (!settings) {
-      settings = await Settings.create({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
+      settings = await Settings.create({ monthlyFee: 30, dailyFine: 2, dueDate: 28 })
     }
     return NextResponse.json({ settings }, {
       headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' }

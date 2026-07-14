@@ -57,7 +57,7 @@ export async function register() {
         }
 
         if (settingsCount === 0) {
-          await Settings.create({ monthlyFee: 20, dailyFine: 2, dueDate: 10, qrImage: '', upiId: '' })
+          await Settings.create({ monthlyFee: 30, dailyFine: 2, dueDate: 28, qrImage: '', upiId: '' })
         }
 
         console.log('✅ GOC seed complete')

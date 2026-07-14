@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
     ])
     if (!player) return NextResponse.json({ error: 'Player not found' }, { status: 404 })
 
-    const fee = settings?.monthlyFee ?? 20
+    const fee = settings?.monthlyFee ?? 30
     const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 10
+    const dueDate = settings?.dueDate ?? 28
     const fine = calculateFine(year, month, dueDate, dailyFine)
 
     // Ensure a pending payment record exists
