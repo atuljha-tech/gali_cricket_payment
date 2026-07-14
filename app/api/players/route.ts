@@ -45,7 +45,11 @@ export async function GET(req: NextRequest) {
     const dailyFine = settings?.dailyFine  ?? 2
     const dueDate   = settings?.dueDate    ?? 10
 
-    const paymentMap = new Map(payments.map(p => [p.playerId.toString(), p]))
+    const paymentMap = new Map<string, typeof payments[number]>()
+    for (const payment of payments) {
+      if (!payment.playerId) continue
+      paymentMap.set(payment.playerId.toString(), payment)
+    }
 
     const result = players.map(player => {
       const pay = paymentMap.get(String(player._id))

@@ -42,6 +42,7 @@ export default function HomePage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [settings, setSettings] = useState({ monthlyFee: 20, dailyFine: 2, dueDate: 10 })
   const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -52,14 +53,20 @@ export default function HomePage() {
 
   const fetchPlayers = useCallback(async () => {
     setLoading(true)
+    setLoadError('')
     try {
       const res = await fetch(
         `/api/players?search=${encodeURIComponent(search)}&month=${month}&year=${year}`
       )
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to load players (${res.status})`)
+      }
       setPlayers(data.players || [])
       if (data.settings) setSettings(data.settings)
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load players'
+      setLoadError(message)
       console.error(e)
     } finally {
       setLoading(false)
@@ -185,6 +192,20 @@ export default function HomePage() {
 
         {/* ── Players Table ────────────────────────────────────────────── */}
         <div className="card overflow-hidden">
+          {loadError && !loading && (
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-red-500/20 bg-red-500/10">
+              <div>
+                <p className="text-sm font-semibold text-red-300">Couldn&apos;t load players</p>
+                <p className="text-xs text-red-200/80 mt-0.5">{loadError}</p>
+              </div>
+              <button
+                onClick={fetchPlayers}
+                className="px-3 py-2 rounded-lg text-xs font-semibold bg-red-500/15 text-red-200 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           {/* Read-only notice */}
           <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-700/40 bg-slate-800/40">
