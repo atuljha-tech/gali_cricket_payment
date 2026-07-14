@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   Search, QrCode, CheckCircle2, Clock, AlertCircle,
-  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown
+  Star, Camera, ArrowRight, Shield, Users, IndianRupee, Crown, Wallet
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 import PlayerCard from '@/components/PlayerCard'
@@ -92,6 +92,10 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link href="/fund"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-lg text-xs font-semibold transition-all">
+              <Wallet size={12} /> Spending
+            </Link>
             <Link href="/gallery"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all">
               <Star size={12} className="fill-amber-400" /> Memories
@@ -349,6 +353,21 @@ export default function HomePage() {
             </div>
           </div>
           <ArrowRight size={16} className="text-slate-600 group-hover:text-amber-400 transition-colors" />
+        </Link>
+
+        {/* ── Fund teaser ─────────────────────────────────────────────── */}
+        <Link href="/fund"
+          className="flex items-center justify-between w-full p-4 bg-gradient-to-r from-red-900/20 to-slate-900/40 border border-red-800/25 rounded-xl hover:border-red-700/40 transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-red-500/15 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Wallet size={17} className="text-red-400" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Fund Spending</p>
+              <p className="text-xs text-slate-500">See how the collected fund is being used</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-slate-600 group-hover:text-red-400 transition-colors" />
         </Link>
 
         <p className="text-center text-xs text-slate-700 pb-2">

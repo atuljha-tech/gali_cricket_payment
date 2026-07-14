@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard, Users, History, Settings, LogOut,
-  Menu, X, QrCode, Images, ChevronRight, Grid3x3
+  Menu, X, QrCode, Images, ChevronRight, Grid3x3, Wallet
 } from 'lucide-react'
 
 const navItems = [
@@ -13,6 +13,7 @@ const navItems = [
   { href: '/players',   label: 'Players',         icon: Users },
   { href: '/matrix',    label: 'Fee Matrix',      icon: Grid3x3 },
   { href: '/history',   label: 'Payment History', icon: History },
+  { href: '/fund',      label: 'Fund Spending',   icon: Wallet },
   { href: '/gallery',   label: 'GOC Memories',    icon: Images },
   { href: '/settings',  label: 'Settings',        icon: Settings },
 ]
