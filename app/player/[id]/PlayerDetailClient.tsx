@@ -2,31 +2,93 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/AdminLayout'
-import { ArrowLeft, CheckCircle2, Clock, AlertCircle, Phone, Mail, Calendar, Crown, Shield, CircleDot, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Clock, Phone, Mail, Calendar, Crown, Shield, CircleDot, Pencil, IndianRupee, ChevronDown, ChevronUp } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 import { battingLabel, bowlingLabel } from '@/lib/playerMeta'
 import PlayerProfileEditModal from '@/components/PlayerProfileEditModal'
 
-interface Payment {
+interface MonthRecord {
+  month: number; year: number; status: string
+  amountApplied: number; receiptNo?: string
+}
+interface TransactionEntry {
+  sourcePaymentId: string; paidAt?: string; paidAmount: number; adminName: string
+  months: MonthRecord[]
+}
+interface PaymentRecord {
   _id: string; month: number; year: number; amount: number; fine: number; total: number
-  status: 'paid' | 'pending'; receiptNo?: string; paidAt?: string; adminId?: { name: string }
+  status: 'paid' | 'pending' | 'partial'; receiptNo?: string; paidAt?: string; adminId?: { name: string }
 }
 interface Player {
   _id: string; name: string; phone: string; email?: string; joiningDate: string; active: boolean
   role?: string; battingStyle?: string; bowlingArm?: string; bowlingType?: string; jerseyNumber?: number; isCaptain?: boolean
 }
 
+function formatDate(s?: string) {
+  if (!s) return '—'
+  return new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+function TxnCard({ txn }: { txn: TransactionEntry }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="bg-slate-800/50 border border-slate-700/40 rounded-xl overflow-hidden">
+      <button onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-green-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
+            <IndianRupee size={14} className="text-green-400" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-white">₹{txn.paidAmount} paid</p>
+            <p className="text-[11px] text-slate-500">{formatDate(txn.paidAt)} · by {txn.adminName}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">{txn.months.length} month{txn.months.length !== 1 ? 's' : ''}</span>
+          {open ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
+        </div>
+      </button>
+      {open && (
+        <div className="px-4 pb-3 space-y-1.5 border-t border-slate-700/40 pt-3">
+          {txn.months.map((m, i) => (
+            <div key={i} className="flex items-center justify-between text-xs">
+              <span className="text-slate-300 font-medium">{MONTH_NAMES[m.month]} {m.year}</span>
+              <div className="flex items-center gap-3">
+                {m.status === 'paid'
+                  ? <span className="text-green-400 font-semibold">✓ ₹{m.amountApplied} — Paid</span>
+                  : <span className="text-yellow-400">₹{m.amountApplied} — Partial (₹{30 - m.amountApplied} due)</span>}
+                {m.receiptNo && <span className="text-slate-600 font-mono text-[10px]">{m.receiptNo}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function PlayerDetailClient({ playerId, adminName, adminEmail }: { playerId: string; adminName: string; adminEmail?: string }) {
   const isSuperAdmin = adminEmail === 'rishigoc@mail.com'
-  const [player, setPlayer] = useState<Player | null>(null)
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [player, setPlayer]   = useState<Player | null>(null)
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [txnHistory, setTxnHistory] = useState<TransactionEntry[]>([])
+  const [creditBalance, setCreditBalance] = useState(0)
+  const [dueBalance, setDueBalance]       = useState(0)
+  const [loading, setLoading]   = useState(true)
   const [editOpen, setEditOpen] = useState(false)
 
   const fetchPlayer = useCallback(() => {
     fetch(`/api/players/${playerId}`)
       .then(r => r.json())
-      .then(d => { setPlayer(d.player); setPayments(d.payments || []); setLoading(false) })
+      .then(d => {
+        setPlayer(d.player)
+        setPayments(d.payments || [])
+        setTxnHistory(d.transactionHistory || [])
+        setCreditBalance(d.creditBalance ?? 0)
+        setDueBalance(d.dueBalance ?? 0)
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
   }, [playerId])
 
@@ -52,7 +114,7 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
     </AdminLayout>
   )
 
-  const totalPaid = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.total, 0)
+  const totalPaid  = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.total, 0)
   const paidMonths = payments.filter(p => p.status === 'paid').length
 
   return (
@@ -76,7 +138,7 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
                 {player.jerseyNumber != null ? player.jerseyNumber : player.name.charAt(0).toUpperCase()}
               </div>
               {player.isCaptain && (
-                <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg ring-2 ring-yellow-200" title="Team Captain">
+                <div className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-yellow-400 flex items-center justify-center shadow-lg ring-2 ring-yellow-200">
                   <Crown size={14} className="text-yellow-900 fill-yellow-900" />
                 </div>
               )}
@@ -89,13 +151,8 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
                     <Crown size={10} className="fill-yellow-900" /> CAPTAIN
                   </span>
                 )}
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${player.active ? 'bg-green-500/15 text-green-400 border border-green-500/25' : 'bg-red-500/15 text-red-400 border border-red-500/25'}`}>
-                  {player.active ? 'Active' : 'Inactive'}
-                </span>
                 {player.role && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
-                    {player.role}
-                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">{player.role}</span>
                 )}
               </div>
               <div className="mt-2.5 space-y-1.5">
@@ -108,13 +165,13 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Calendar size={13} className="text-slate-500" /> Joined {new Date(player.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <Calendar size={13} className="text-slate-500" />
+                  Joined {new Date(player.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Cricket speciality */}
           {(player.battingStyle || player.bowlingArm || player.role) && (
             <div className="grid grid-cols-2 gap-3 mt-5">
               <div className="bg-white/[0.03] border border-white/10 rounded-xl p-3.5">
@@ -132,14 +189,14 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bowling</span>
                 </div>
                 <p className={`text-sm font-semibold ${player.bowlingArm ? 'text-white' : 'text-slate-600'}`}>
-                  {bowlingLabel(player.bowlingArm, player.bowlingType) || 'Doesn’t bowl'}
+                  {bowlingLabel(player.bowlingArm, player.bowlingType) || "Doesn't bowl"}
                 </p>
               </div>
             </div>
           )}
 
           {/* Mini stats */}
-          <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-700/40">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-700/40">
             <div className="text-center">
               <p className="text-lg font-bold text-white">{paidMonths}</p>
               <p className="text-xs text-slate-500 mt-0.5">Months Paid</p>
@@ -149,53 +206,53 @@ export default function PlayerDetailClient({ playerId, adminName, adminEmail }: 
               <p className="text-xs text-slate-500 mt-0.5">Total Paid</p>
             </div>
             <div className="text-center">
-              <p className="text-lg font-bold text-slate-300">{payments.length}</p>
-              <p className="text-xs text-slate-500 mt-0.5">Records</p>
+              <p className={`text-lg font-bold ${creditBalance > 0 ? 'text-blue-400' : 'text-slate-600'}`}>₹{creditBalance}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Credit</p>
+            </div>
+            <div className="text-center">
+              <p className={`text-lg font-bold ${dueBalance > 0 ? 'text-yellow-400' : 'text-slate-600'}`}>₹{dueBalance}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Due</p>
             </div>
           </div>
         </div>
 
-        {/* History */}
+        {/* Transaction History (admin view — shows full allocation breakdown) */}
         <div>
           <h2 className="text-sm font-bold text-slate-300 mb-3">Payment History</h2>
-          {payments.length === 0 ? (
+          {txnHistory.length === 0 ? (
             <div className="card p-8 text-center text-slate-500 text-sm">No payment records yet</div>
           ) : (
-            <div className="card overflow-hidden">
-              <div className="divide-y divide-slate-700/30">
-                {payments.map((p) => (
-                  <div key={p._id} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-slate-700/20 transition-colors">
-                    <div>
-                      <p className="text-sm font-semibold text-white">{MONTH_NAMES[p.month]} {p.year}</p>
-                      {p.receiptNo && <p className="text-xs text-slate-500 font-mono mt-0.5">{p.receiptNo}</p>}
-                      {p.paidAt && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {new Date(p.paidAt).toLocaleDateString('en-IN')}{p.adminId && ` · ${p.adminId.name}`}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right flex-shrink-0 space-y-1.5">
-                      {p.status === 'paid' ? (
-                        <span className="badge-paid"><CheckCircle2 size={10} />Paid</span>
-                      ) : p.fine > 0 ? (
-                        <span className="badge-late"><AlertCircle size={10} />Late</span>
-                      ) : (
-                        <span className="badge-pending"><Clock size={10} />Pending</span>
-                      )}
-                      <p className="text-base font-bold text-white">₹{p.total}</p>
-                      {p.fine > 0 && <p className="text-xs text-red-400">Fine: ₹{p.fine}</p>}
-                      {p.status === 'paid' && p._id && (
-                        <Link href={`/receipt/${p._id}`} className="text-xs text-green-400 hover:text-green-300 transition-colors block">
-                          Receipt →
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="space-y-3">
+              {txnHistory.map(txn => (
+                <TxnCard key={txn.sourcePaymentId} txn={txn} />
+              ))}
             </div>
           )}
         </div>
+
+        {/* Credit/Due summary if any */}
+        {(creditBalance > 0 || dueBalance > 0) && (
+          <div className="card p-4 flex items-center gap-4">
+            {creditBalance > 0 && (
+              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-2.5">
+                <IndianRupee size={14} className="text-blue-400" />
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Credit Balance</p>
+                  <p className="text-lg font-black text-blue-400">₹{creditBalance}</p>
+                </div>
+              </div>
+            )}
+            {dueBalance > 0 && (
+              <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-2.5">
+                <Clock size={14} className="text-yellow-400" />
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Due Balance</p>
+                  <p className="text-lg font-black text-yellow-400">₹{dueBalance}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {isSuperAdmin && editOpen && player && (

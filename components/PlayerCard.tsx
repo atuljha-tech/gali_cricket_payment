@@ -20,7 +20,7 @@ export interface PlayerCardData {
   isCaptain?: boolean
   joiningDate?: string
   payment?: {
-    status: 'paid' | 'pending'
+    status: 'paid' | 'pending' | 'partial'
     total: number
     fine: number
     amount: number
@@ -117,7 +117,7 @@ export default function PlayerCard({
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bowling</span>
               </div>
               <p className={`text-sm font-semibold ${bowling ? 'text-white' : 'text-slate-600'}`}>
-                {bowling || 'Doesn’t bowl'}
+                {bowling || "Doesn't bowl"}
               </p>
             </div>
           </div>

@@ -13,6 +13,9 @@ export interface IPlayer extends Document {
   bowlingType?: string   // Pace | Medium | Spin
   jerseyNumber?: number
   isCaptain: boolean
+  // ── Payment tracking ──
+  creditBalance: number
+  dueBalance: number
 }
 
 const PlayerSchema = new Schema<IPlayer>(
@@ -29,6 +32,9 @@ const PlayerSchema = new Schema<IPlayer>(
     bowlingType: { type: String, enum: ['Pace', 'Medium', 'Spin', ''], default: '' },
     jerseyNumber:{ type: Number, min: 0, max: 999 },
     isCaptain:   { type: Boolean, default: false },
+    // ── Payment tracking ──
+    creditBalance: { type: Number, default: 0 },
+    dueBalance: { type: Number, default: 0 },
   },
   { timestamps: true }
 )

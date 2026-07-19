@@ -2,19 +2,17 @@ import mongoose, { Schema, Document } from 'mongoose'
 
 export interface ISettings extends Document {
   monthlyFee: number
-  dailyFine: number
-  dueDate: number   // day of month, e.g. 10 means 10th of every month
-  qrImage: string   // Cloudinary secure URL (or a legacy base64 string from before the Cloudinary migration)
+  dueDate: number   // day of month (last day of month for due date display only)
+  qrImage: string   // Cloudinary secure URL
   upiId: string
 }
 
 const SettingsSchema = new Schema<ISettings>(
   {
     monthlyFee: { type: Number, default: 30 },
-    dailyFine: { type: Number, default: 2 },
-    dueDate: { type: Number, default: 28 },
-    qrImage: { type: String, default: '' },
-    upiId: { type: String, default: '' },
+    dueDate:    { type: Number, default: 31 },  // last day of month
+    qrImage:    { type: String, default: '' },
+    upiId:      { type: String, default: '' },
   },
   { timestamps: true }
 )

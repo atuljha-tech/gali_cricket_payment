@@ -4,27 +4,25 @@ import Player from '@/models/Player'
 import Payment from '@/models/Payment'
 import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
-import { calculateFine } from '@/lib/fineCalculator'
 import { isBeforeFeeStart, applicableMonthCount, dueMonthCount } from '@/lib/feeConfig'
 
 export const dynamic = 'force-dynamic'
 
 interface MatrixCell {
   _id?: string
-  status: 'paid' | 'pending' | 'none' | 'na'
+  status: 'paid' | 'pending' | 'partial' | 'none' | 'na'
   amount: number
   fine: number
   total: number
   receiptNo?: string
   paidAt?: string
+  dueAmount?: number
 }
 
 /**
- * GET /api/payments/matrix?year=YYYY  — admin only.
- * Returns every active player and their 12-month payment grid for the year,
- * in just two DB queries. Months before the fee structure started (July 2026)
- * are returned as 'na' and never count toward dues or totals. The summary is
- * computed here so the client does no heavy work.
+ * GET /api/payments/matrix?year=YYYY — admin only.
+ * Returns every active player and their 12-month payment grid for the year.
+ * Fine system has been removed — cells show 0 for fine.
  */
 export async function GET(req: NextRequest) {
   const admin = verifyRequestToken(req)
@@ -37,24 +35,22 @@ export async function GET(req: NextRequest) {
 
     const [players, settings, payments] = await Promise.all([
       Player.find({ active: true })
-        .select('_id name phone joiningDate isCaptain')
+        .select('_id name phone joiningDate isCaptain creditBalance dueBalance')
         .sort({ name: 1 })
-        .lean<Array<{ _id: unknown; name: string; phone?: string; joiningDate: Date; isCaptain?: boolean }>>(),
+        .lean<Array<{ _id: unknown; name: string; phone?: string; joiningDate: Date; isCaptain?: boolean; creditBalance?: number; dueBalance?: number }>>(),
       Settings.findOne()
-        .select('monthlyFee dailyFine dueDate')
-        .lean<{ monthlyFee: number; dailyFine: number; dueDate: number } | null>(),
+        .select('monthlyFee dueDate')
+        .lean<{ monthlyFee: number; dueDate: number } | null>(),
       Payment.find({ year })
-        .select('playerId month status amount fine total receiptNo paidAt')
+        .select('playerId month status amount total receiptNo paidAt')
         .lean(),
     ])
 
     const monthlyFee = settings?.monthlyFee ?? 30
-    const dailyFine = settings?.dailyFine ?? 2
-    const dueDate = settings?.dueDate ?? 28
 
     const now = new Date()
     const currentMonth = now.getMonth() + 1
-    const currentYear = now.getFullYear()
+    const currentYear  = now.getFullYear()
 
     // playerId -> month -> payment
     const payMap = new Map<string, Map<number, any>>()
@@ -65,81 +61,87 @@ export async function GET(req: NextRequest) {
     }
 
     const monthTotals = Array(13).fill(0) // 1..12
-    const dueMonths = dueMonthCount(year, currentYear, currentMonth)
+    const dueMonths   = dueMonthCount(year, currentYear, currentMonth)
 
-    // Aggregate summary
-    let outstanding = 0
+    let outstanding   = 0
     let totalPaidCells = 0
-    let fullyPaid = 0
+    let fullyPaid      = 0
 
     const rows = players.map((player) => {
-      const pid = String(player._id)
-      const playerPayments = payMap.get(pid)
-      let rowPaidTotal = 0
+      const pid             = String(player._id)
+      const playerPayments  = payMap.get(pid)
+      let rowPaidTotal  = 0
       let rowPaidMonths = 0
-      let rowPaidDue = 0 // paid months that are actually "due" (for fully-paid calc)
+      let rowPaidDue    = 0
 
       const cells: MatrixCell[] = []
       for (let m = 1; m <= 12; m++) {
         const pay = playerPayments?.get(m)
 
         if (pay?.status === 'paid') {
-          rowPaidTotal += pay.total
+          rowPaidTotal  += pay.total
           rowPaidMonths += 1
           monthTotals[m] += pay.total
-          totalPaidCells += 1
+          totalPaidCells  += 1
           if (!isBeforeFeeStart(year, m)) {
             const isDue = year < currentYear || (year === currentYear && m <= currentMonth)
             if (isDue) rowPaidDue += 1
           }
           cells.push({
-            _id: String(pay._id),
-            status: 'paid',
-            amount: pay.amount,
-            fine: pay.fine,
-            total: pay.total,
+            _id:      String(pay._id),
+            status:   'paid',
+            amount:   pay.amount,
+            fine:     0,
+            total:    pay.total,
             receiptNo: pay.receiptNo,
-            paidAt: pay.paidAt,
+            paidAt:   pay.paidAt,
           })
           continue
         }
 
-        // Before the fee structure existed — not applicable, never a due.
+        if (pay?.status === 'partial') {
+          const dueAmount = monthlyFee - (pay.amount ?? 0)
+          cells.push({
+            _id:       String(pay._id),
+            status:    'partial',
+            amount:    pay.amount ?? 0,
+            fine:      0,
+            total:     pay.total,
+            dueAmount,
+          })
+          continue
+        }
+
+        // N/A
         if (isBeforeFeeStart(year, m)) {
           cells.push({ status: 'na', amount: 0, fine: 0, total: 0 })
           continue
         }
 
-        // Future month — fee applies but isn't due yet.
+        // Future month
         const isFuture = year > currentYear || (year === currentYear && m > currentMonth)
         if (isFuture) {
           cells.push({ status: 'none', amount: monthlyFee, fine: 0, total: monthlyFee })
           continue
         }
 
-        // Past or current unpaid month — this is a real outstanding due.
-        const fine = calculateFine(year, m, dueDate, dailyFine)
-        const total = monthlyFee + fine
-        outstanding += total
-        cells.push({
-          _id: pay?._id ? String(pay._id) : undefined,
-          status: 'pending',
-          amount: monthlyFee,
-          fine,
-          total,
-        })
+        // Unpaid past/current month
+        outstanding += monthlyFee
+        cells.push({ status: 'pending', amount: monthlyFee, fine: 0, total: monthlyFee })
       }
 
       if (dueMonths > 0 && rowPaidDue >= dueMonths) fullyPaid += 1
 
       return {
-        _id: pid,
-        name: player.name,
-        phone: player.phone || '',
-        isCaptain: player.isCaptain || false,
+        _id:         pid,
+        name:        player.name,
+        phone:       player.phone || '',
+        isCaptain:   player.isCaptain   || false,
+        creditBalance: player.creditBalance ?? 0,
+        dueBalance:    player.dueBalance    ?? 0,
         cells,
-        paidMonths: rowPaidMonths,
-        paidTotal: rowPaidTotal,
+        paidMonths:  rowPaidMonths,
+        paidTotal:   rowPaidTotal,
       }
     })
 
@@ -148,17 +150,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       year,
       players: rows,
-      monthTotals: monthTotals.slice(1), // Jan..Dec
+      monthTotals:       monthTotals.slice(1),
       grandTotal,
-      applicableMonths: applicableMonthCount(year),
+      applicableMonths:  applicableMonthCount(year),
       summary: {
-        collected: grandTotal,
+        collected:       grandTotal,
         outstanding,
         fullyPaid,
         totalPaidCells,
-        playerCount: rows.length,
+        playerCount:     rows.length,
       },
-      settings: { monthlyFee, dailyFine, dueDate },
+      settings:     { monthlyFee, dueDate: settings?.dueDate ?? 31 },
       currentMonth,
       currentYear,
       feeStart: { year: 2026, month: 7 },

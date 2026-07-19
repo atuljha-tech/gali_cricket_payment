@@ -4,20 +4,18 @@ import Settings from '@/models/Settings'
 import { verifyRequestToken } from '@/lib/auth'
 import { SUPERADMIN_EMAIL } from '@/lib/adminConfig'
 
-// Force dynamic — never cache this route on Vercel CDN
-// Without this, Vercel treats it as static GET-only and returns 405 on PUT
 export const dynamic = 'force-dynamic'
 
-// GET /api/settings — public (players need fee info)
+// GET /api/settings — public
 export async function GET() {
   try {
     await dbConnect()
     let settings = await Settings.findOne().lean()
     if (!settings) {
-      settings = await Settings.create({ monthlyFee: 30, dailyFine: 2, dueDate: 28 })
+      settings = await Settings.create({ monthlyFee: 30, dueDate: 31 })
     }
     return NextResponse.json({ settings }, {
-      headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' }
+      headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=120' },
     })
   } catch (err) {
     console.error(err)
@@ -25,7 +23,7 @@ export async function GET() {
   }
 }
 
-// PUT /api/settings — superadmin (Rishi) only for QR/UPI; any admin for fee/fine/dueDate
+// PUT /api/settings — any admin for fee/dueDate; superadmin for QR/UPI
 export async function PUT(req: NextRequest) {
   const admin = verifyRequestToken(req)
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,13 +31,12 @@ export async function PUT(req: NextRequest) {
   try {
     await dbConnect()
     const body = await req.json()
-    const { monthlyFee, dailyFine, dueDate, qrImage, upiId } = body
+    const { monthlyFee, dueDate, qrImage, upiId } = body
 
     const isSuperAdmin = admin.email === SUPERADMIN_EMAIL
 
     const setFields: Record<string, unknown> = {}
     if (monthlyFee !== undefined) setFields.monthlyFee = Number(monthlyFee)
-    if (dailyFine  !== undefined) setFields.dailyFine  = Number(dailyFine)
     if (dueDate    !== undefined) setFields.dueDate    = Number(dueDate)
     if (isSuperAdmin) {
       if (upiId   !== undefined) setFields.upiId   = upiId

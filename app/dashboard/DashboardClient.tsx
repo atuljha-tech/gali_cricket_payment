@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import AdminLayout from '@/components/AdminLayout'
 import StatCard from '@/components/StatCard'
@@ -7,7 +7,7 @@ import {
   Users, CheckCircle2, Clock, AlertCircle,
   IndianRupee, TrendingUp, ChevronRight,
   Zap, Calendar, ArrowUpRight, Grid3x3,
-  TrendingDown, Wallet
+  TrendingDown, Wallet, RefreshCw
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 
@@ -88,16 +88,65 @@ function HeroSection({ data, loading }: { data: DashboardData | null; loading: b
 export default function DashboardClient({ adminName, adminEmail }: { adminName: string; adminEmail: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
-  useEffect(() => {
-    fetch('/api/dashboard')
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false) })
-      .catch(() => setLoading(false))
+  const fetchDashboard = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const res = await fetch('/api/dashboard', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setData(d)
+        setLastUpdated(new Date())
+      }
+    } catch {
+      // silent failure on background refresh
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [])
+
+  // Initial load
+  useEffect(() => { fetchDashboard(false) }, [fetchDashboard])
+
+  // Auto-refresh every 30 seconds silently
+  useEffect(() => {
+    const id = setInterval(() => fetchDashboard(true), 30_000)
+    return () => clearInterval(id)
+  }, [fetchDashboard])
+
+  // Refresh on tab focus (catches updates made in other tabs/windows)
+  useEffect(() => {
+    const onFocus = () => fetchDashboard(true)
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [fetchDashboard])
 
   return (
     <AdminLayout adminName={adminName} adminEmail={adminEmail}>
+      {/* Refresh bar */}
+      <div className="flex items-center justify-between mb-4">
+        <div />
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-[11px] text-slate-500">
+              Updated {lastUpdated.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+          <button
+            onClick={() => fetchDashboard(false)}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-all disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+      </div>
+
       <HeroSection data={data} loading={loading} />
 
       {/* Stats Grid */}

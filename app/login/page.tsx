@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Eye, EyeOff, Loader2, ShieldCheck, Trophy, Zap, Lock } from 'lucide-react'
@@ -11,6 +11,14 @@ export default function LoginPage() {
   const [showPw,   setShowPw]   = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
+
+  // Load saved credentials from localStorage on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('goc_admin_email')
+    const savedPassword = localStorage.getItem('goc_admin_password')
+    if (savedEmail) setEmail(savedEmail)
+    if (savedPassword) setPassword(savedPassword)
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -26,7 +34,10 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Login failed')
       } else {
-        router.push('/dashboard')
+        // Save credentials to localStorage after successful login
+        localStorage.setItem('goc_admin_email', email)
+        localStorage.setItem('goc_admin_password', password)
+        router.push('/players')
         router.refresh()
       }
     } catch {
@@ -74,7 +85,7 @@ export default function LoginPage() {
             {[
               { icon: ShieldCheck, text: 'Restricted to 4 authorised admins only' },
               { icon: Trophy,      text: 'Track payments & generate receipts' },
-              { icon: Zap,         text: 'Auto fine calculation on late payments' },
+              { icon: Zap,         text: 'Flexible payment allocation across months' },
             ].map(({ icon: Icon, text }) => (
               <div key={text} className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-left">
                 <Icon size={15} className="text-green-400 flex-shrink-0" />
