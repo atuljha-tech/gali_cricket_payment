@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
     const availableBalance = totalRevenue - totalSpent
 
     const monthlyFee         = settingsDoc?.monthlyFee ?? 30
-    const expectedCollection = totalPlayers * monthlyFee
+    const expectedCollection = monthRevenue + pendingCount * monthlyFee
 
     // Money-based collection % — ₹580/₹690 = 84% (not player count based)
     const moneyCollectionPct = expectedCollection > 0
