@@ -14,6 +14,7 @@ interface MonthRecord {
 interface TransactionEntry {
   sourcePaymentId: string; paidAt?: string; paidAmount: number; adminName: string
   months: MonthRecord[]
+  creditGenerated?: number
 }
 interface PaymentRecord {
   _id: string; month: number; year: number; amount: number; fine: number; total: number
@@ -44,7 +45,12 @@ function TxnCard({ txn }: { txn: TransactionEntry }) {
             <p className="text-[11px] text-slate-500">{formatDate(txn.paidAt)} · by {txn.adminName}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {txn.creditGenerated && (
+            <div className="flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 rounded-lg px-2 py-1">
+              <span className="text-[10px] font-semibold text-blue-400">+₹{txn.creditGenerated} Credit</span>
+            </div>
+          )}
           <span className="text-xs text-slate-500">{txn.months.length} month{txn.months.length !== 1 ? 's' : ''}</span>
           {open ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
         </div>

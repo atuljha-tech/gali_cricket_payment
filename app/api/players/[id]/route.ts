@@ -48,15 +48,19 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         amountApplied: number
         receiptNo?: string
       }>
+      creditGenerated?: number
     }> = []
 
     for (const [sid, records] of Array.from(sourceGroups.entries())) {
       const first = records[0]
       const admin = first.adminId as any
+      const totalPaidAmount = (first as any).paidAmount ?? records.reduce((s, r) => s + (r.total ?? 0), 0)
+      const totalApplied = records.reduce((s, r) => s + (r.amount ?? r.total), 0)
+      const creditGenerated = totalPaidAmount - totalApplied // Calculate credit as leftover
       transactionHistory.push({
         sourcePaymentId: sid,
         paidAt:    first.paidAt ? new Date(first.paidAt as any) : undefined,
-        paidAmount: (first as any).paidAmount ?? records.reduce((s, r) => s + (r.total ?? 0), 0),
+        paidAmount: totalPaidAmount,
         adminName: admin?.name ?? 'Admin',
         months: records.map(r => ({
           month:         r.month,
@@ -65,6 +69,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
           amountApplied: r.amount ?? r.total,
           receiptNo:     r.receiptNo,
         })),
+        creditGenerated: creditGenerated > 0 ? creditGenerated : undefined,
       })
     }
 
