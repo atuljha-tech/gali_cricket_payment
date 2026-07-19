@@ -7,7 +7,6 @@ import {
   Camera, Star, Trophy, ArrowLeft,
   ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react'
-import { uploadToCloudinary } from '@/lib/uploadImage'
 
 interface Photo {
   _id: string
@@ -143,10 +142,17 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
   const [uploaderName, setUploaderName] = useState('')
   const [loading,      setLoading]      = useState(false)
   const [done,         setDone]         = useState(0)
-  const [currentPct,   setCurrentPct]   = useState(0)
   const [error,        setError]        = useState('')
   const [dragOver,     setDragOver]     = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Helper to convert File to base64 data URL
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 
   function addFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
@@ -169,22 +175,19 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
   async function handleUpload() {
     if (!previews.length) return
-    setLoading(true); setError(''); setDone(0); setCurrentPct(0)
+    setLoading(true); setError(''); setDone(0)
     const name   = uploaderName.trim() || 'Anonymous'
     const errors: string[] = []
 
     for (let i = 0; i < previews.length; i++) {
-      setCurrentPct(0)
       try {
-        // Upload directly from browser → Cloudinary (no server body-size limit)
-        const uploaded = await uploadToCloudinary(previews[i].file, 'gallery', setCurrentPct)
+        // Convert file to base64
+        const base64Data = await fileToBase64(previews[i].file)
         const res = await fetch('/api/gallery', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            imageUrl:     uploaded.url,
-            thumbnailUrl: uploaded.thumbnailUrl,
-            publicId:     uploaded.publicId,
+            image: base64Data,
             uploaderName: name,
           }),
         })
@@ -206,7 +209,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     }
   }
 
-  const progress = previews.length ? Math.round(((done + currentPct / 100) / previews.length) * 100) : 0
+  const progress = previews.length ? Math.round((done / previews.length) * 100) : 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">

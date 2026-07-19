@@ -124,7 +124,7 @@ export async function OPTIONS() {
 }
 
 // ── POST /api/gallery ─────────────────────────────────────────────────────────
-// Receives Cloudinary URL (never raw bytes) — keeps request body tiny
+// Receives base64 encoded image, generates thumbnail
 export async function POST(req: NextRequest) {
   try {
     await dbConnect()
@@ -132,19 +132,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null)
     if (!body) return jsonResponse({ error: 'Invalid request body' }, 400)
 
-    const { imageUrl, thumbnailUrl, uploaderName, publicId } = body
+    const { image, uploaderName } = body
     const name = typeof uploaderName === 'string' ? uploaderName.trim() : ''
 
-    if (typeof imageUrl !== 'string' || !imageUrl) {
-      return jsonResponse({ error: 'Image URL required' }, 400)
+    if (typeof image !== 'string' || !image || !image.startsWith('data:image/')) {
+      return jsonResponse({ error: 'Valid base64 image required' }, 400)
     }
 
+    // Generate thumbnail using existing makeThumb function
+    const thumbnailUrl = await makeThumb(image)
+
     const photo = await GalleryPhoto.create({
-      imageUrl,
-      thumbnailUrl: thumbnailUrl || imageUrl,
-      publicId:     typeof publicId === 'string' ? publicId : undefined,
+      image, // save base64 as 'image' field (legacy but compatible)
+      imageUrl: image, // also save to imageUrl for consistency
+      thumbnailUrl: thumbnailUrl,
       uploaderName: name || 'Anonymous',
-      uploadedAt:   new Date(),
+      uploadedAt: new Date(),
     })
 
     return jsonResponse({ photo }, 201)

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import GalleryPhoto from '@/models/GalleryPhoto'
-import cloudinary from '@/lib/cloudinary'
 import { verifyRequestToken } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -20,12 +19,6 @@ export async function DELETE(
     const photo = await GalleryPhoto.findByIdAndDelete(id)
     if (!photo) {
       return NextResponse.json({ error: 'Photo not found' }, { status: 404 })
-    }
-
-    if (photo.publicId) {
-      await cloudinary.uploader.destroy(photo.publicId).catch((err) => {
-        console.error('[gallery] cloudinary destroy failed:', err)
-      })
     }
 
     return NextResponse.json({ message: 'Photo deleted successfully' })

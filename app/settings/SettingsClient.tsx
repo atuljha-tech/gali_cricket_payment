@@ -2,7 +2,6 @@
 import { useEffect, useState, useRef } from 'react'
 import AdminLayout from '@/components/AdminLayout'
 import { Save, Upload, Loader2, CheckCircle2, QrCode, IndianRupee, AlertCircle } from 'lucide-react'
-import { uploadToCloudinary } from '@/lib/uploadImage'
 
 interface Settings {
   monthlyFee: number
@@ -12,6 +11,14 @@ interface Settings {
 }
 
 export default function SettingsClient({ adminName, adminEmail }: { adminName: string; adminEmail: string }) {
+  // Helper to convert File to base64 data URL
+  const fileToBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
   const isSuperAdmin = adminEmail === 'rishigoc@mail.com'
   const [settings, setSettings] = useState<Settings>({ monthlyFee: 30, dueDate: 31, qrImage: '', upiId: '' })
   const [loading, setLoading]   = useState(true)
@@ -48,8 +55,8 @@ export default function SettingsClient({ adminName, adminEmail }: { adminName: s
     if (!file) return
     setError(''); setUploadingQr(true)
     try {
-      const uploaded = await uploadToCloudinary(file, 'qr')
-      setSettings(s => ({ ...s, qrImage: uploaded.url }))
+      const base64Data = await fileToBase64(file)
+      setSettings(s => ({ ...s, qrImage: base64Data }))
     } catch (err: any) {
       setError(err.message || 'Could not upload QR image')
     } finally {
