@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       }>
     }> = []
 
-    for (const [sid, records] of sourceGroups.entries()) {
+    for (const [sid, records] of Array.from(sourceGroups.entries())) {
       const first = records[0]
       const admin = first.adminId as any
       transactionHistory.push({

@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
   try {
     await dbConnect()
-    const payment = await Payment.findById(params.id).lean()
+    const payment = await Payment.findById(params.id).lean() as any
     if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
 
     const playerId = payment.playerId

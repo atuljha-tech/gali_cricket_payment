@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     // Find existing partial payment (oldest first)
     const existingPartial = await Payment.findOne({
       playerId, status: 'partial'
-    }).sort({ year: 1, month: 1 }).lean()
+    }).sort({ year: 1, month: 1 }).lean() as any
 
     // Determine start month
     let startMonth = month
