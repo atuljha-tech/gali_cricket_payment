@@ -152,8 +152,14 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     const arr = Array.from(files).filter(f => f.type.startsWith('image/'))
     if (arr.length < Array.from(files).length) setError('Non-image files skipped')
     setPreviews(prev => {
+      const maxAllowed = 5
       const newOnes = arr.filter(f => !prev.some(p => p.file.name === f.name && p.file.size === f.size))
-      return [...prev, ...newOnes.map(f => ({ file: f, objectUrl: URL.createObjectURL(f) }))]
+      const combined = [...prev, ...newOnes.map(f => ({ file: f, objectUrl: URL.createObjectURL(f) }))]
+      if (combined.length > maxAllowed) {
+        setError(`Maximum ${maxAllowed} photos allowed per upload`)
+        return combined.slice(0, maxAllowed)
+      }
+      return combined
     })
   }
 
