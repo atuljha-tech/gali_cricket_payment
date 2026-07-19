@@ -6,8 +6,6 @@ import Settings from '@/models/Settings'
 import Admin from '@/models/Admin'
 import { verifyRequestToken } from '@/lib/auth'
 
-export const dynamic = 'force-dynamic'
-
 // GET /api/players — PUBLIC (home page) or admin
 export async function GET(req: NextRequest) {
   try {
@@ -117,9 +115,10 @@ export async function GET(req: NextRequest) {
       return a.name.localeCompare(b.name)
     })
 
+    // Cache for 30 seconds, stale-while-revalidate 60 seconds for faster loads
     return NextResponse.json(
       { players: result, settings: { monthlyFee: fee } },
-      { headers: { 'Cache-Control': 'no-store' } }
+      { headers: { 'Cache-Control': 's-maxage=30, stale-while-revalidate=60' } }
     )
   } catch (err) {
     console.error(err)

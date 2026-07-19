@@ -67,7 +67,7 @@ export default function HomePage() {
     try {
       const res  = await fetch(
         `/api/players?search=${encodeURIComponent(search)}&month=${month}&year=${year}`,
-        { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }
+        { next: { revalidate: 30 } }
       )
       const data = await res.json().catch(() => null)
       if (!res.ok) throw new Error(data?.error || `Failed to load players (${res.status})`)
@@ -81,8 +81,7 @@ export default function HomePage() {
   }, [search, month, year])
 
   useEffect(() => {
-    const t = setTimeout(fetchPlayers, 300)
-    return () => clearTimeout(t)
+    fetchPlayers()
   }, [fetchPlayers])
 
   // Refresh when tab comes back into focus
