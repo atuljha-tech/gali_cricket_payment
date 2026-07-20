@@ -442,7 +442,7 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
           </div>
         ) : (
           <>
-            {/* Mobile Game Style Progress Bar */}
+            {/* Mobile Game Style Progress Bar - Top */}
             <div className="mb-6 bg-slate-900/80 border border-yellow-500/30 rounded-2xl p-4 shadow-xl shadow-black/50 backdrop-blur-sm overflow-hidden relative">
               <div className="flex justify-between items-end mb-2 relative z-10">
                 <span className="text-sm font-bold text-yellow-400 tracking-wide uppercase flex items-center gap-2">
@@ -490,6 +490,27 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Mobile Game Style Progress Bar - Bottom */}
+            <div className="mt-6 bg-slate-900/80 border border-yellow-500/30 rounded-2xl p-4 shadow-xl shadow-black/50 backdrop-blur-sm overflow-hidden relative">
+              <div className="flex justify-between items-end mb-2 relative z-10">
+                <span className="text-sm font-bold text-yellow-400 tracking-wide uppercase flex items-center gap-2">
+                  {photos.length < total ? <Loader2 size={14} className="animate-spin" /> : <Star size={14} className="fill-yellow-400" />}
+                  {photos.length < total ? 'Loading Memories...' : 'All Photos Loaded'}
+                </span>
+                <span className="text-xs font-black text-yellow-500 bg-yellow-950/50 px-2 py-0.5 rounded-md border border-yellow-500/20">
+                  {photos.length} / {total}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative z-10">
+                <div 
+                  className="h-full bg-gradient-to-r from-yellow-600 via-yellow-400 to-amber-300 transition-all duration-700 ease-out relative shadow-[0_0_10px_rgba(250,204,21,0.5)]"
+                  style={{ width: `${total > 0 ? Math.min(100, Math.round((photos.length / total) * 100)) : 100}%` }}
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] animate-[shimmer_2s_infinite]" />
+                </div>
+              </div>
             </div>
           </>
         )}
