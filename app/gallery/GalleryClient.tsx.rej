@@ -1,0 +1,25 @@
+***************
+*** 320,330 ****
+  
+  // ── Main ──────────────────────────────────────────────────────────────────────
+- export default function GalleryClient() {
+-   const [photos,      setPhotos]      = useState<Photo[]>([])
+-   const [loading,     setLoading]     = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const [isAdmin,     setIsAdmin]     = useState(false)
+    const [adminName,   setAdminName]   = useState<string | undefined>()
+    const [adminEmail,  setAdminEmail]  = useState<string | undefined>()
+    const [showUpload,  setShowUpload]  = useState(false)
+    const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+--- 326,336 ----
+  
+  // ── Main ──────────────────────────────────────────────────────────────────────
++ export default function GalleryClient({ initialData }: { initialData?: InitialData }) {
++   const [photos,      setPhotos]      = useState<Photo[]>(initialData?.photos || [])
++   const [loading,     setLoading]     = useState(!initialData)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const [isAdmin,     setIsAdmin]     = useState(false)
+    const [adminName,   setAdminName]   = useState<string | undefined>()
+    const [adminEmail,  setAdminEmail]  = useState<string | undefined>()
+    const [showUpload,  setShowUpload]  = useState(false)
+    const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)

@@ -16,12 +16,6 @@ interface Photo {
   uploaderName?: string
 }
 
-interface InitialData {
-  photos: Photo[]
-  total: number
-  pages: number
-}
-
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function Lightbox({
   photos, index, onClose, onNav, isAdmin, onDelete,
@@ -326,9 +320,9 @@ function PublicGalleryHeader() {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function GalleryClient({ initialData }: { initialData?: { photos: Photo[], total: number, pages: number } }) {
-  const [photos,      setPhotos]      = useState<Photo[]>(initialData?.photos || [])
-  const [loading,     setLoading]     = useState(!initialData)
+export default function GalleryClient() {
+  const [photos,      setPhotos]      = useState<Photo[]>([])
+  const [loading,     setLoading]     = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [isAdmin,     setIsAdmin]     = useState(false)
   const [adminName,   setAdminName]   = useState<string | undefined>()
@@ -336,47 +330,72 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
   const [showUpload,  setShowUpload]  = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
   const [page,        setPage]        = useState(1)
-  const [pages,       setPages]       = useState(initialData?.pages || 1)
-  const [total,       setTotal]       = useState(initialData?.total || 0)
+  const [pages,       setPages]       = useState(1)
+  const [total,       setTotal]       = useState(0)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
+  const [initialThumbsLoaded, setInitialThumbsLoaded] = useState(0)
+  const [displayProgress, setDisplayProgress] = useState(0)
 
   const fetchPhotos = useCallback(async (p = 1) => {
-    if (p === 1 && !initialData) setLoading(true); else setLoadingMore(true)
+    if (p === 1) setLoading(true); else setLoadingMore(true)
     try {
       const res  = await fetch(`/api/gallery?page=${p}`)
       const data = await res.json()
       if (!data.error) {
+        setPage(p)
         setPhotos(prev => p === 1 ? (data.photos || []) : [...prev, ...(data.photos || [])])
         setTotal(data.total  || 0)
         setPages(data.pages  || 1)
+        if (p === 1) setInitialThumbsLoaded(0)
       }
     } finally {
       if (p === 1) setLoading(false); else setLoadingMore(false)
     }
-  }, [initialData])
+  }, [])
 
   // Admin check + initial load — parallel
   useEffect(() => {
-    if (!initialData) fetchPhotos(1)
+    fetchPhotos(1)
     fetch('/api/auth/me')
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.admin) { setIsAdmin(true); setAdminName(d.admin.name); setAdminEmail(d.admin.email) } })
       .catch(() => {})
-  }, [fetchPhotos, initialData])
+  }, [fetchPhotos])
 
-  // Automatic background fetching for remaining pages
+  const initialThumbTarget = Math.min(12, total || 12)
+  const initialThumbProgress = initialThumbTarget > 0
+    ? Math.round((initialThumbsLoaded / initialThumbTarget) * 100)
+    : 0
+
+  useEffect(() => {
+    if (loading && photos.length === 0) {
+      setDisplayProgress(8)
+      return
+    }
+
+    if (loading || initialThumbsLoaded < initialThumbTarget) {
+      const nextProgress = 8 + Math.round((initialThumbsLoaded / Math.max(initialThumbTarget, 1)) * 82)
+      setDisplayProgress(prev => Math.max(prev, Math.min(95, nextProgress)))
+      return
+    }
+
+    setDisplayProgress(100)
+  }, [loading, photos.length, initialThumbsLoaded, initialThumbTarget])
+
   useEffect(() => {
     if (loading || loadingMore) return
+    if (initialThumbsLoaded < initialThumbTarget) return
     if (page >= pages) return
     const timer = window.setTimeout(() => {
-      setPage(p => p + 1)
-    }, 500)
+      fetchPhotos(page + 1)
+    }, page === 1 ? 250 : 400)
     return () => window.clearTimeout(timer)
-  }, [loading, loadingMore, page, pages])
+  }, [fetchPhotos, loading, loadingMore, page, pages, initialThumbsLoaded, initialThumbTarget])
 
-  useEffect(() => {
-    if (page > 1) fetchPhotos(page)
-  }, [page, fetchPhotos])
+  const handleThumbnailLoaded = useCallback((idx: number) => {
+    if (idx >= initialThumbTarget) return
+    setInitialThumbsLoaded(prev => Math.min(prev + 1, initialThumbTarget))
+  }, [initialThumbTarget])
 
   const deletePhoto = async (id: string) => {
     setDeletingId(id)
@@ -396,6 +415,12 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
 
   const Content = (
     <div className="min-h-screen">
+      <div className="sticky top-0 z-30 h-1 w-full bg-slate-950/90 backdrop-blur-xl">
+        <div
+          className="h-full bg-gradient-to-r from-yellow-500 via-amber-400 to-green-400 transition-all duration-300 ease-out"
+          style={{ width: `${displayProgress}%` }}
+        />
+      </div>
 
       {/* Hero */}
       <div className="relative overflow-hidden">
@@ -429,6 +454,13 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {loading && photos.length === 0 ? (
           <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+              <div className="flex items-center gap-2">
+                <Loader2 size={15} className="animate-spin" />
+                <span>Loading first 12 memories</span>
+              </div>
+              <span className="text-xs font-semibold">{displayProgress}%</span>
+            </div>
             <div className="gallery-grid">{[...Array(12)].map((_, i) => <div key={i} className="aspect-square bg-slate-800/60 rounded-xl animate-pulse border border-slate-700/30" />)}</div>
           </div>
         ) : photos.length === 0 ? (
@@ -442,27 +474,15 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
           </div>
         ) : (
           <>
-            {/* Mobile Game Style Progress Bar */}
-            <div className="mb-6 bg-slate-900/80 border border-yellow-500/30 rounded-2xl p-4 shadow-xl shadow-black/50 backdrop-blur-sm overflow-hidden relative">
-              <div className="flex justify-between items-end mb-2 relative z-10">
-                <span className="text-sm font-bold text-yellow-400 tracking-wide uppercase flex items-center gap-2">
-                  {photos.length < total ? <Loader2 size={14} className="animate-spin" /> : <Star size={14} className="fill-yellow-400" />}
-                  {photos.length < total ? 'Loading Memories...' : 'All Photos Loaded'}
-                </span>
-                <span className="text-xs font-black text-yellow-500 bg-yellow-950/50 px-2 py-0.5 rounded-md border border-yellow-500/20">
-                  {photos.length} / {total}
-                </span>
-              </div>
-              <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative z-10">
-                <div 
-                  className="h-full bg-gradient-to-r from-yellow-600 via-yellow-400 to-amber-300 transition-all duration-700 ease-out relative shadow-[0_0_10px_rgba(250,204,21,0.5)]"
-                  style={{ width: `${total > 0 ? Math.min(100, Math.round((photos.length / total) * 100)) : 100}%` }}
-                >
-                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] animate-[shimmer_2s_infinite]" />
+            {initialThumbsLoaded < initialThumbTarget && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>Loading first 12 memories</span>
                 </div>
+                <span className="text-xs font-semibold">{initialThumbProgress}%</span>
               </div>
-            </div>
-
+            )}
             <div className="gallery-grid">
               {photos.map((photo, idx) => (
                 <div key={photo._id}
@@ -471,7 +491,9 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
                   <img src={photo.thumbnailUrl || photo.url} alt={photo.uploaderName || 'GOC memory'}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading={idx < 12 ? 'eager' : 'lazy'} decoding="async"
-                    fetchPriority={idx < 12 ? 'high' : 'auto'} />
+                    fetchPriority={idx < 12 ? 'high' : 'auto'}
+                    onLoad={() => handleThumbnailLoaded(idx)}
+                    onError={() => handleThumbnailLoaded(idx)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
                     <div className="flex justify-end">
                       {isAdmin && (
@@ -491,6 +513,14 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
                 </div>
               ))}
             </div>
+
+            {loadingMore && (
+              <div className="flex flex-col items-center gap-2 py-5 text-slate-500">
+                <Loader2 size={22} className="animate-spin" />
+                <p className="text-xs">Loading the next 12 memories in the background</p>
+              </div>
+            )}
+            <p className="text-center text-xs text-slate-600 mt-2">{photos.length} of {total} photos · GOC Memories</p>
           </>
         )}
       </div>
