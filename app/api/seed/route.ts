@@ -1,6 +1,6 @@
 /**
  * POST /api/seed
- * Seeds the 4 fixed admins and 24 predefined players.
+ * Seeds the 5 fixed admins and 24 predefined players.
  * Safe to run multiple times — uses upsert logic, won't duplicate.
  * After first run the app is ready to use.
  */

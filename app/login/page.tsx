@@ -83,7 +83,7 @@ export default function LoginPage() {
           {/* Feature pills */}
           <div className="space-y-3 mb-10">
             {[
-              { icon: ShieldCheck, text: 'Restricted to 4 authorised admins only' },
+              { icon: ShieldCheck, text: 'Restricted to 5 authorised admins only' },
               { icon: Trophy,      text: 'Track payments & generate receipts' },
               { icon: Zap,         text: 'Flexible payment allocation across months' },
             ].map(({ icon: Icon, text }) => (

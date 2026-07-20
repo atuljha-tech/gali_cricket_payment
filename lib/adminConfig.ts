@@ -3,6 +3,7 @@ export const PREDEFINED_ADMINS = [
   { name: 'Debottam', email: 'debottomgoc@mail.com', role: 'admin'      },
   { name: 'Rishi',    email: 'rishigoc@mail.com',    role: 'superadmin' },
   { name: 'Bitan',    email: 'bitangoc@mail.com',    role: 'admin'      },
+  { name: 'Ankit',    email: 'ankitgoc@mail.com',    role: 'admin'      },
 ] as const
 
 /** Only Rishi (superadmin) can manage payments / QR / settings */

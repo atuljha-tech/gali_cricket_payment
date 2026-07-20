@@ -28,7 +28,7 @@ export async function register() {
           await Player.updateOne({ name: 'Bitan' }, { $set: { isCaptain: true } })
         }
 
-        if (adminCount >= 4 && playerCount >= 23 && settingsCount >= 1) {
+        if (adminCount >= 5 && playerCount >= 23 && settingsCount >= 1) {
           return // Already seeded — nothing to do
         }
 
@@ -36,7 +36,7 @@ export async function register() {
         const { default: bcrypt } = await import('bcryptjs')
         const { PREDEFINED_ADMINS, ADMIN_PASSWORD, PREDEFINED_PLAYERS } = await import('./lib/adminConfig')
 
-        if (adminCount < 4) {
+        if (adminCount < 5) {
           const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, 12)
           for (const a of PREDEFINED_ADMINS) {
             await Admin.findOneAndUpdate(
