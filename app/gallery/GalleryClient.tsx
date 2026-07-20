@@ -333,7 +333,7 @@ export default function GalleryClient() {
   const [pages,       setPages]       = useState(1)
   const [total,       setTotal]       = useState(0)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
-  const sentinelRef = useRef<HTMLDivElement>(null)
+  const [initialThumbsLoaded, setInitialThumbsLoaded] = useState(0)
 
   const fetchPhotos = useCallback(async (p = 1) => {
     if (p === 1) setLoading(true); else setLoadingMore(true)
@@ -341,9 +341,11 @@ export default function GalleryClient() {
       const res  = await fetch(`/api/gallery?page=${p}`)
       const data = await res.json()
       if (!data.error) {
+        setPage(p)
         setPhotos(prev => p === 1 ? (data.photos || []) : [...prev, ...(data.photos || [])])
         setTotal(data.total  || 0)
         setPages(data.pages  || 1)
+        if (p === 1) setInitialThumbsLoaded(0)
       }
     } finally {
       if (p === 1) setLoading(false); else setLoadingMore(false)
@@ -359,21 +361,27 @@ export default function GalleryClient() {
       .catch(() => {})
   }, [fetchPhotos])
 
-  // IntersectionObserver infinite scroll
+  const initialThumbTarget = Math.min(12, total || 12)
+  const initialThumbProgress = initialThumbTarget > 0
+    ? Math.round((initialThumbsLoaded / initialThumbTarget) * 100)
+    : 0
+  const galleryProgress = total > 0
+    ? Math.round((Math.min(photos.length, total) / total) * 100)
+    : initialThumbProgress
+
   useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !loadingMore && !loading) {
-        setPage(prev => {
-          if (prev < pages) { fetchPhotos(prev + 1); return prev + 1 }
-          return prev
-        })
-      }
-    }, { rootMargin: '400px' })
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [loadingMore, loading, pages, fetchPhotos])
+    if (loading || loadingMore) return
+    if (page >= pages) return
+    const timer = window.setTimeout(() => {
+      fetchPhotos(page + 1)
+    }, page === 1 ? 250 : 400)
+    return () => window.clearTimeout(timer)
+  }, [fetchPhotos, loading, loadingMore, page, pages])
+
+  const handleThumbnailLoaded = useCallback((idx: number) => {
+    if (idx >= initialThumbTarget) return
+    setInitialThumbsLoaded(prev => Math.min(prev + 1, initialThumbTarget))
+  }, [initialThumbTarget])
 
   const deletePhoto = async (id: string) => {
     setDeletingId(id)
@@ -393,6 +401,13 @@ export default function GalleryClient() {
 
   const Content = (
     <div className="min-h-screen">
+      <div className="sticky top-0 z-30 h-1 w-full bg-slate-950/90 backdrop-blur-xl">
+        <div
+          className="h-full bg-gradient-to-r from-yellow-500 via-amber-400 to-green-400 transition-all duration-200 ease-out"
+          style={{ width: `${galleryProgress}%` }}
+        />
+      </div>
+
       {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-950" />
@@ -424,7 +439,16 @@ export default function GalleryClient() {
       {/* Grid */}
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {loading && photos.length === 0 ? (
-          <div className="gallery-grid">{[...Array(12)].map((_, i) => <div key={i} className="aspect-square bg-slate-800/60 rounded-xl animate-pulse border border-slate-700/30" />)}</div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+              <div className="flex items-center gap-2">
+                <Loader2 size={15} className="animate-spin" />
+                <span>Loading first 12 memories</span>
+              </div>
+              <span className="text-xs font-semibold">0%</span>
+            </div>
+            <div className="gallery-grid">{[...Array(12)].map((_, i) => <div key={i} className="aspect-square bg-slate-800/60 rounded-xl animate-pulse border border-slate-700/30" />)}</div>
+          </div>
         ) : photos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-24 h-24 bg-slate-800/60 border-2 border-dashed border-slate-600 rounded-3xl flex items-center justify-center mb-6"><ImageIcon size={36} className="text-slate-500" /></div>
@@ -436,6 +460,15 @@ export default function GalleryClient() {
           </div>
         ) : (
           <>
+            {initialThumbsLoaded < initialThumbTarget && (
+              <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+                <div className="flex items-center gap-2">
+                  <Loader2 size={15} className="animate-spin" />
+                  <span>Loading first 12 memories</span>
+                </div>
+                <span className="text-xs font-semibold">{initialThumbProgress}%</span>
+              </div>
+            )}
             <div className="gallery-grid">
               {photos.map((photo, idx) => (
                 <div key={photo._id}
@@ -443,7 +476,10 @@ export default function GalleryClient() {
                   onClick={() => setLightboxIdx(idx)}>
                   <img src={photo.thumbnailUrl || photo.url} alt={photo.uploaderName || 'GOC memory'}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy" decoding="async" />
+                    loading={idx < 12 ? 'eager' : 'lazy'} decoding="async"
+                    fetchPriority={idx < 4 ? 'high' : 'auto'}
+                    onLoad={() => handleThumbnailLoaded(idx)}
+                    onError={() => handleThumbnailLoaded(idx)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
                     <div className="flex justify-end">
                       {isAdmin && (
@@ -464,9 +500,12 @@ export default function GalleryClient() {
               ))}
             </div>
 
-            {/* Invisible sentinel triggers next-page load */}
-            <div ref={sentinelRef} className="h-4" />
-            {loadingMore && <div className="flex justify-center py-4"><Loader2 size={22} className="animate-spin text-slate-500" /></div>}
+            {loadingMore && (
+              <div className="flex flex-col items-center gap-2 py-5 text-slate-500">
+                <Loader2 size={22} className="animate-spin" />
+                <p className="text-xs">Loading the next 12 memories in the background</p>
+              </div>
+            )}
             <p className="text-center text-xs text-slate-600 mt-2">{photos.length} of {total} photos · GOC Memories</p>
           </>
         )}

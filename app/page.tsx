@@ -5,7 +5,7 @@ import Image from 'next/image'
 import {
   Search, QrCode, CheckCircle2, Clock,
   Star, Camera, ArrowRight, Shield, Users, IndianRupee,
-  Crown, Wallet, BarChart3, Menu, X
+  Crown, Wallet, BarChart3, Menu, X, Loader2
 } from 'lucide-react'
 import { MONTH_NAMES } from '@/lib/fineCalculator'
 import PlayerCard from '@/components/PlayerCard'
@@ -56,6 +56,7 @@ export default function HomePage() {
   const [settings, setSettings]   = useState({ monthlyFee: 30 })
   const [cardPlayer, setCardPlayer] = useState<PlayerRow | null>(null)
   const [menuOpen, setMenuOpen]     = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
 
   const now   = new Date()
   const month = now.getMonth() + 1
@@ -84,6 +85,21 @@ export default function HomePage() {
     fetchPlayers()
   }, [fetchPlayers])
 
+  useEffect(() => {
+    if (!loading) {
+      setLoadingProgress(100)
+      const reset = window.setTimeout(() => setLoadingProgress(0), 350)
+      return () => window.clearTimeout(reset)
+    }
+
+    setLoadingProgress(12)
+    const id = window.setInterval(() => {
+      setLoadingProgress(curr => (curr >= 88 ? 88 : Math.min(88, curr + Math.max(2, Math.round((88 - curr) / 6)))))
+    }, 160)
+
+    return () => window.clearInterval(id)
+  }, [loading])
+
   // Refresh when tab comes back into focus
   useEffect(() => {
     const onFocus = () => fetchPlayers()
@@ -96,6 +112,12 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pitch-bg">
+      <div className="sticky top-0 z-40 h-1 w-full bg-slate-900/90 backdrop-blur-xl">
+        <div
+          className="h-full bg-gradient-to-r from-green-500 via-emerald-400 to-yellow-400 transition-all duration-200 ease-out"
+          style={{ width: `${loadingProgress}%` }}
+        />
+      </div>
 
       {/* ── Top Nav ─────────────────────────────────────────────────── */}
       <header className="bg-slate-900/95 border-b border-slate-700/50 sticky top-0 z-30 backdrop-blur-xl">
@@ -143,6 +165,15 @@ export default function HomePage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
+        {loading && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+            <div className="flex items-center gap-2">
+              <Loader2 size={15} className="animate-spin" />
+              <span>Loading players and season data</span>
+            </div>
+            <span className="text-xs font-semibold text-green-200">{loadingProgress}%</span>
+          </div>
+        )}
 
         {/* Hero */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-green-900 via-green-950 to-slate-900 border border-green-500/25 shadow-[0_0_50px_-20px_rgba(34,197,94,0.6)]">
