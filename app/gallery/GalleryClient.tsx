@@ -429,6 +429,24 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         {loading && photos.length === 0 ? (
           <div className="space-y-4">
+            {/* Mobile Game Style Progress Bar (Connecting State) */}
+            <div className="mb-6 bg-slate-900/80 border border-yellow-500/30 rounded-2xl p-4 shadow-xl shadow-black/50 backdrop-blur-sm overflow-hidden relative">
+              <div className="flex justify-between items-end mb-2 relative z-10">
+                <span className="text-sm font-bold text-yellow-400 tracking-wide uppercase flex items-center gap-2">
+                  <Loader2 size={14} className="animate-spin" /> Connecting to server...
+                </span>
+                <span className="text-xs font-black text-yellow-500 bg-yellow-950/50 px-2 py-0.5 rounded-md border border-yellow-500/20">
+                  0%
+                </span>
+              </div>
+              <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative z-10">
+                <div 
+                  className="h-full bg-gradient-to-r from-yellow-600 via-yellow-400 to-amber-300 transition-all duration-700 ease-out relative shadow-[0_0_10px_rgba(250,204,21,0.5)] w-[5%]"
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] animate-[shimmer_2s_infinite]" />
+                </div>
+              </div>
+            </div>
             <div className="gallery-grid">{[...Array(12)].map((_, i) => <div key={i} className="aspect-square bg-slate-800/60 rounded-xl animate-pulse border border-slate-700/30" />)}</div>
           </div>
         ) : photos.length === 0 ? (
@@ -471,7 +489,8 @@ export default function GalleryClient({ initialData }: { initialData?: { photos:
                   <img src={photo.thumbnailUrl || photo.url} alt={photo.uploaderName || 'GOC memory'}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading={idx < 12 ? 'eager' : 'lazy'} decoding="async"
-                    fetchPriority={idx < 12 ? 'high' : 'auto'} />
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    {...({ fetchpriority: idx < 12 ? 'high' : 'auto' } as any)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
                     <div className="flex justify-end">
                       {isAdmin && (
