@@ -1,5 +1,12 @@
 import mongoose from 'mongoose'
 
+// Ensure all models are registered to prevent Webpack tree-shaking issues in production
+// which causes `.populate()` to throw "Schema hasn't been registered"
+import '@/models/Admin'
+import '@/models/Player'
+import '@/models/Payment'
+import '@/models/Settings'
+
 interface MongooseCache {
   conn: typeof mongoose | null
   promise: Promise<typeof mongoose> | null
@@ -40,3 +47,4 @@ async function dbConnect(): Promise<typeof mongoose> {
 }
 
 export default dbConnect
+
