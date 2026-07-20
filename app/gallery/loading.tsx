@@ -1,52 +1,83 @@
-import { Camera, Loader2, Star } from 'lucide-react'
+import { Camera, Loader2, Star, Trophy, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
+
+function PublicGalleryHeader() {
+  return (
+    <header className="bg-slate-900/95 border-b border-slate-700/50 backdrop-blur-xl sticky top-0 z-20">
+      <div className="max-w-7xl mx-auto px-4 py-3.5 flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft size={16} />
+        </Link>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center">
+            <Star size={15} className="text-white fill-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">GOC Memories</p>
+            <p className="text-[10px] text-slate-500">Gali Online Cricket · Gallery</p>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+}
 
 export default function Loading() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pitch-bg">
-      <div className="sticky top-0 z-40 h-1 w-full bg-slate-900/90 backdrop-blur-xl">
-        <div className="h-full w-3/4 bg-gradient-to-r from-yellow-500 via-amber-400 to-green-400 animate-pulse" />
-      </div>
-
+    <div className="min-h-screen bg-slate-950 pitch-bg text-slate-100">
+      <PublicGalleryHeader />
+      
+      {/* Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-950/80 via-slate-900 to-slate-950" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_50%,rgba(250,204,21,0.08),transparent_70%)]" />
+        <div className="absolute inset-0 pitch-bg opacity-20" />
         <div className="relative z-10 px-4 md:px-8 py-12 md:py-16 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2 mb-4 rounded-full border border-yellow-500/20 bg-yellow-500/10 px-3 py-1.5 w-fit text-yellow-300 text-xs font-semibold">
-            <Loader2 size={12} className="animate-spin" />
-            Loading gallery memories
-          </div>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div className="space-y-3 max-w-xl">
-              <div className="h-4 w-36 rounded-full bg-white/10 skeleton" />
-              <div className="h-11 w-80 max-w-full rounded-2xl bg-white/10 skeleton" />
-              <div className="h-4 w-72 max-w-full rounded-full bg-white/10 skeleton" />
-              <div className="flex items-center gap-4 pt-2">
-                <div className="h-4 w-24 rounded-full bg-white/10 skeleton" />
-                <div className="h-4 w-28 rounded-full bg-white/10 skeleton" />
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-400 bg-yellow-500/15 border border-yellow-500/25 px-3 py-1 rounded-full">
+                  <Star size={11} className="fill-yellow-400" /> Community Gallery
+                </span>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">GOC <span className="text-yellow-400">Memories</span></h1>
+              <p className="text-slate-400 mt-2 max-w-md">Captured moments from the pitch. Every match, every celebration.</p>
+              <div className="flex items-center gap-4 mt-4 text-sm text-slate-500">
+                <span className="flex items-center gap-1.5"><Loader2 size={14} className="text-yellow-400 animate-spin" /> Counting photos...</span>
+                <span className="flex items-center gap-1.5"><Trophy size={14} className="text-yellow-400" />Gali Online Cricket</span>
               </div>
             </div>
-            <div className="h-12 w-44 rounded-xl bg-yellow-500/20 skeleton" />
+            <button disabled className="flex items-center gap-2.5 px-6 py-3.5 bg-gradient-to-r from-yellow-500 to-amber-500 opacity-50 text-slate-900 font-bold rounded-xl shadow-xl shadow-yellow-900/30 text-sm self-start md:self-auto cursor-not-allowed">
+              <Camera size={18} /> Add Your Memory
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-4">
-        <div className="flex items-center justify-between rounded-2xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
-          <div className="flex items-center gap-2">
-            <Camera size={15} />
-            First 12 photos are loading
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
+        {/* Mobile Game Style Progress Bar (Connecting State) */}
+        <div className="mb-6 bg-slate-900/80 border border-yellow-500/30 rounded-2xl p-4 shadow-xl shadow-black/50 backdrop-blur-sm overflow-hidden relative">
+          <div className="flex justify-between items-end mb-2 relative z-10">
+            <span className="text-sm font-bold text-yellow-400 tracking-wide uppercase flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Connecting to server...
+            </span>
+            <span className="text-xs font-black text-yellow-500 bg-yellow-950/50 px-2 py-0.5 rounded-md border border-yellow-500/20">
+              0%
+            </span>
           </div>
-          <span className="text-xs font-semibold">0%</span>
+          <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800 relative z-10">
+            <div 
+              className="h-full bg-gradient-to-r from-yellow-600 via-yellow-400 to-amber-300 transition-all duration-700 ease-out relative shadow-[0_0_10px_rgba(250,204,21,0.5)] w-[5%]"
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.4),transparent)] animate-[shimmer_2s_infinite]" />
+            </div>
+          </div>
         </div>
 
         <div className="gallery-grid">
           {[...Array(12)].map((_, i) => (
-            <div key={i} className="aspect-square rounded-xl border border-slate-700/30 bg-slate-800/60 skeleton" />
+            <div key={i} className="aspect-square rounded-xl border border-slate-700/30 bg-slate-800/60 animate-pulse" />
           ))}
-        </div>
-
-        <div className="flex items-center justify-center gap-2 py-6 text-slate-500 text-sm">
-          <Star size={14} className="text-yellow-400" />
-          Preparing the next batch in the background
         </div>
       </div>
     </div>
