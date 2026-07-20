@@ -334,6 +334,7 @@ export default function GalleryClient() {
   const [total,       setTotal]       = useState(0)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
   const [initialThumbsLoaded, setInitialThumbsLoaded] = useState(0)
+  const [displayProgress, setDisplayProgress] = useState(0)
 
   const fetchPhotos = useCallback(async (p = 1) => {
     if (p === 1) setLoading(true); else setLoadingMore(true)
@@ -365,18 +366,31 @@ export default function GalleryClient() {
   const initialThumbProgress = initialThumbTarget > 0
     ? Math.round((initialThumbsLoaded / initialThumbTarget) * 100)
     : 0
-  const galleryProgress = total > 0
-    ? Math.round((Math.min(photos.length, total) / total) * 100)
-    : initialThumbProgress
+
+  useEffect(() => {
+    if (loading && photos.length === 0) {
+      setDisplayProgress(8)
+      return
+    }
+
+    if (loading || initialThumbsLoaded < initialThumbTarget) {
+      const nextProgress = 8 + Math.round((initialThumbsLoaded / Math.max(initialThumbTarget, 1)) * 82)
+      setDisplayProgress(prev => Math.max(prev, Math.min(95, nextProgress)))
+      return
+    }
+
+    setDisplayProgress(100)
+  }, [loading, photos.length, initialThumbsLoaded, initialThumbTarget])
 
   useEffect(() => {
     if (loading || loadingMore) return
+    if (initialThumbsLoaded < initialThumbTarget) return
     if (page >= pages) return
     const timer = window.setTimeout(() => {
       fetchPhotos(page + 1)
     }, page === 1 ? 250 : 400)
     return () => window.clearTimeout(timer)
-  }, [fetchPhotos, loading, loadingMore, page, pages])
+  }, [fetchPhotos, loading, loadingMore, page, pages, initialThumbsLoaded, initialThumbTarget])
 
   const handleThumbnailLoaded = useCallback((idx: number) => {
     if (idx >= initialThumbTarget) return
@@ -403,8 +417,8 @@ export default function GalleryClient() {
     <div className="min-h-screen">
       <div className="sticky top-0 z-30 h-1 w-full bg-slate-950/90 backdrop-blur-xl">
         <div
-          className="h-full bg-gradient-to-r from-yellow-500 via-amber-400 to-green-400 transition-all duration-200 ease-out"
-          style={{ width: `${galleryProgress}%` }}
+          className="h-full bg-gradient-to-r from-yellow-500 via-amber-400 to-green-400 transition-all duration-300 ease-out"
+          style={{ width: `${displayProgress}%` }}
         />
       </div>
 
@@ -445,7 +459,7 @@ export default function GalleryClient() {
                 <Loader2 size={15} className="animate-spin" />
                 <span>Loading first 12 memories</span>
               </div>
-              <span className="text-xs font-semibold">0%</span>
+              <span className="text-xs font-semibold">{displayProgress}%</span>
             </div>
             <div className="gallery-grid">{[...Array(12)].map((_, i) => <div key={i} className="aspect-square bg-slate-800/60 rounded-xl animate-pulse border border-slate-700/30" />)}</div>
           </div>
@@ -477,7 +491,7 @@ export default function GalleryClient() {
                   <img src={photo.thumbnailUrl || photo.url} alt={photo.uploaderName || 'GOC memory'}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading={idx < 12 ? 'eager' : 'lazy'} decoding="async"
-                    fetchPriority={idx < 4 ? 'high' : 'auto'}
+                    fetchPriority={idx < 12 ? 'high' : 'auto'}
                     onLoad={() => handleThumbnailLoaded(idx)}
                     onError={() => handleThumbnailLoaded(idx)} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-200 flex flex-col justify-between p-3">
