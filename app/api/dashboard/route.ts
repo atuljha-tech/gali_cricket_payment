@@ -4,6 +4,7 @@ import Player from '@/models/Player'
 import Payment from '@/models/Payment'
 import Settings from '@/models/Settings'
 import Transaction from '@/models/Transaction'
+import IncomeTransaction from '@/models/IncomeTransaction'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
     const isMonthWise = !!(reqMonth || reqYear)
 
     // Parallel queries
-    const [players, monthPayments, revenueAgg, monthRevenueAgg, totalSpentResult, monthTransactions, settingsDoc] = await Promise.all([
+    const [players, monthPayments, revenueAgg, monthRevenueAgg, totalIncomeAgg, monthIncomeAgg, totalSpentResult, monthTransactions, settingsDoc] = await Promise.all([
       Player.find({ active: true }).lean<Array<{ _id: unknown }>>(),
 
       // All payment records for the selected month (paid or partial)
@@ -96,6 +97,22 @@ export async function GET(req: NextRequest) {
         { $group: { _id: null, total: { $sum: '$cash' } } },
       ]),
 
+      // Total fund income (all-time)
+      IncomeTransaction.aggregate([{ $group: { _id: null, sum: { $sum: '$amount' } } }]),
+
+      // Fund income for the selected month only
+      IncomeTransaction.aggregate([
+        {
+          $match: {
+            date: {
+              $gte: new Date(year, month - 1, 1),
+              $lt:  new Date(year, month, 1),
+            },
+          },
+        },
+        { $group: { _id: null, sum: { $sum: '$amount' } } },
+      ]),
+
       // Total expenses (all-time)
       Transaction.aggregate([{ $group: { _id: null, sum: { $sum: '$amount' } } }]),
 
@@ -122,10 +139,12 @@ export async function GET(req: NextRequest) {
     // ₹580 = 16×₹30 + 1×₹100 (each transaction counted once)
     const totalRevenue  = revenueAgg[0]?.total   ?? 0
     const monthRevenue  = monthRevenueAgg[0]?.total ?? 0
+    const totalIncome   = totalIncomeAgg[0]?.sum ?? 0
+    const monthIncome   = monthIncomeAgg[0]?.sum ?? 0
 
     const totalSpent       = totalSpentResult[0]?.sum  ?? 0
     const monthSpent       = monthTransactions[0]?.sum ?? 0
-    const availableBalance = totalRevenue - totalSpent
+    const availableBalance = totalRevenue + totalIncome - totalSpent
 
     const monthlyFee         = settingsDoc?.monthlyFee ?? 30
     const expectedCollection = monthRevenue + pendingCount * monthlyFee
@@ -151,15 +170,17 @@ export async function GET(req: NextRequest) {
       currentYear,
 
       // Overall (default view)
-      totalCollection:    totalRevenue,
+      totalCollection:    totalRevenue + totalIncome,
       totalSpent,
       availableBalance,
+      totalIncome,
 
       // Month-wise
-      thisMonthCollection:  monthRevenue,
+      thisMonthCollection:  monthRevenue + monthIncome,
       expectedCollection,
       monthSpent,
-      monthNetBalance:      monthRevenue - monthSpent,
+      monthIncome,
+      monthNetBalance:      monthRevenue + monthIncome - monthSpent,
       collectionPct:        moneyCollectionPct,   // ₹ collected / ₹ expected
       playerPaidPct,                               // players paid / total players (for ring/pill)
 
