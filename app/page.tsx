@@ -138,6 +138,7 @@ export default function HomePage() {
           <div className="hidden md:flex items-center gap-2">
             <Link href="/stats"   className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/15 border border-blue-500/25 text-blue-400 hover:bg-blue-500/25 rounded-lg text-xs font-semibold transition-all"><BarChart3 size={12} /> Stats</Link>
             <Link href="/fund"    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/25 text-red-400 hover:bg-red-500/25 rounded-lg text-xs font-semibold transition-all"><Wallet size={12} /> Spending</Link>
+            <Link href="/fund-income" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/25 rounded-lg text-xs font-semibold transition-all"><IndianRupee size={12} /> Income</Link>
             <Link href="/gallery" className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/15 border border-amber-500/25 text-amber-400 hover:bg-amber-500/25 rounded-lg text-xs font-semibold transition-all"><Star size={12} className="fill-amber-400" /> Memories</Link>
             <Link href="/qr"      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 border border-slate-600/50 text-slate-300 hover:text-white rounded-lg text-xs font-medium transition-all"><QrCode size={12} /> Pay</Link>
             <Link href="/login"   className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-semibold transition-all shadow-md shadow-green-900/30"><Shield size={12} /> Admin</Link>
@@ -159,6 +160,7 @@ export default function HomePage() {
           <div className="md:hidden border-t border-slate-700/50 bg-slate-900/98 px-4 py-3 flex flex-col gap-2">
             <Link href="/stats"   onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-semibold"><BarChart3 size={16} /> GOC Stats</Link>
             <Link href="/fund"    onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-semibold"><Wallet size={16} /> Fund Spending</Link>
+            <Link href="/fund-income" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold"><IndianRupee size={16} /> Fund Income</Link>
             <Link href="/gallery" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-semibold"><Star size={16} className="fill-amber-400" /> GOC Memories</Link>
           </div>
         )}
