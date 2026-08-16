@@ -10,11 +10,12 @@ import {
 
 // Dashboard and Matrix removed per requirements
 const navItems = [
-  { href: '/players',  label: 'Players',         icon: Users },
-  { href: '/history',  label: 'Payment History', icon: History },
-  { href: '/fund',     label: 'Fund Spending',   icon: Wallet },
-  { href: '/gallery',  label: 'GOC Memories',    icon: Images },
-  { href: '/settings', label: 'Settings',        icon: Settings },
+  { href: '/players',      label: 'Players',         icon: Users },
+  { href: '/history',      label: 'Payment History', icon: History },
+  { href: '/fund',         label: 'Fund Spending',   icon: Wallet },
+  { href: '/fund-income',  label: 'Fund Income',     icon: BarChart3 },
+  { href: '/gallery',      label: 'GOC Memories',    icon: Images },
+  { href: '/settings',     label: 'Settings',        icon: Settings },
 ]
 
 const publicItems = [
